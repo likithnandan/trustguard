@@ -1,0 +1,635 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>An Intelligent AI-Driven Continuous Trust Verification for Medical IoT</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<script>
+  // AUTH GUARD - runs immediately, before the rest of the page renders.
+  // If there's no valid session, send the user back to the login page.
+  if (!localStorage.getItem('authToken')) {
+    window.location.href = 'login.html';
+  }
+  // Doctors get a dedicated, simplified portal instead of the admin
+  // dashboard - if one lands here directly (e.g. a bookmark), redirect them.
+  if (localStorage.getItem('userRole') === 'Doctor') {
+    window.location.href = 'doctor.html';
+  }
+</script>
+<div class="app">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l8 4v6c0 5-3.5 8.5-8 10-4.5-1.5-8-5-8-10V6l8-4z"/></svg>
+      </div>
+      <div>
+        <div class="brand-name">TrustVerify AI</div>
+        <div class="brand-tag">Continuous Trust for Medical IoT</div>
+      </div>
+    </div>
+    <ul class="nav" id="navList">
+      <li><a data-page="dashboard" class="active">${icon('grid')} Dashboard</a></li>
+      <li><a data-page="patients">${icon('users')} Patients</a></li>
+      <li><a data-page="devices">${icon('devices')} Devices</a></li>
+      <li><a data-page="trust">${icon('shield')} Trust Engine</a></li>
+      <li><a data-page="analytics">${icon('brain')} AI Analytics</a></li>
+      <li><a data-page="heatmap">${icon('map')} Risk Heat Map</a></li>
+      <li><a data-page="maintenance">${icon('wrench')} Maintenance Advisor</a></li>
+      <li><a data-page="alerts">${icon('bell')} Alerts & Notifications</a></li>
+      <li><a data-page="reports">${icon('doc')} Reports</a></li>
+      <li><a data-page="profiles">${icon('id')} Device Profiles</a></li>
+      <li><a data-page="settings">${icon('gear')} System Settings</a></li>
+      <li><a data-page="users">${icon('users')} User Management</a></li>
+    </ul>
+    <div class="side-user" id="sideUserTrigger" style="cursor:pointer;">
+      <div class="avatar" id="sidebarAvatar">SW</div>
+      <div>
+        <div class="side-user-name" id="sidebarUserName">Dr. Sarah Wilson</div>
+        <div class="side-user-role"><span class="dot"></span> <span id="sidebarUserRole">Administrator</span></div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <div class="main">
+    <div class="topbar">
+      <div>
+        <h1 id="pageTitle">Dashboard Overview</h1>
+        <p id="pageSub">Real-time overview of your IoMT ecosystem</p>
+      </div>
+      <div class="topbar-right">
+        <div class="date-picker-wrap" style="position:relative;">
+          <div class="date-pill" id="dateRangeTrigger" style="cursor:pointer;">${icon('cal')} <span id="dateRangeLabel">May 10 – May 16, 2026</span></div>
+          <div id="dateRangeDropdown" class="date-dropdown">
+            <div class="date-dropdown-presets">
+              <button class="date-preset-btn" data-days="7">Last 7 Days</button>
+              <button class="date-preset-btn" data-days="10">10 Days Ago</button>
+              <button class="date-preset-btn" data-days="30">Last 30 Days</button>
+            </div>
+            <div class="date-dropdown-custom">
+              <label>Custom date</label>
+              <input type="date" id="customDateInput" value="2026-05-16">
+            </div>
+            <button class="btn-primary" id="applyDateBtn" style="width:100%; justify-content:center; margin-top:10px;">Apply</button>
+          </div>
+        </div>
+        <button class="icon-btn">${icon('bell')}</button>
+        <button class="icon-btn">${icon('settings2')}</button>
+        <button class="icon-btn">${icon('help')}</button>
+      </div>
+    </div>
+
+    <div class="content">
+
+      <!-- DASHBOARD PAGE -->
+      <section class="page active" id="page-dashboard">
+        <div class="grid-4" id="kpiRow"></div>
+
+        <div class="grid-3">
+          <div class="card hero-gauge">
+            <div class="card-title">Overall Trust Score</div>
+            <div class="gauge-wrap">
+              <canvas id="gaugeChart" width="220" height="130"></canvas>
+              <div class="gauge-value">78.6%</div>
+              <div class="gauge-tag">Good</div>
+              <div class="gauge-foot"><span class="up">↑ 8.4%</span> from last week</div>
+            </div>
+          </div>
+          <div class="card">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <div class="card-title">Trust Score Trend</div>
+              <div class="date-pill" style="padding:5px 10px;">Last 7 Days ▾</div>
+            </div>
+            <canvas id="trendChart" height="120"></canvas>
+          </div>
+        </div>
+
+        <div class="small-cards cols-5" id="smallCards"></div>
+      </section>
+
+      <!-- PATIENTS PAGE (Phase 10) -->
+      <section class="page" id="page-patients">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; flex-wrap:wrap; gap:10px;">
+          <div style="display:flex; gap:8px; align-items:center;">
+            <input type="text" id="patientSearchInput" placeholder="Search patients by name, ID, room..." class="form-control" style="width:280px; padding:7px 12px; font-size:12.5px;">
+          </div>
+          <div style="display:flex; gap:10px;">
+            <button class="btn-primary" id="openAddPatientBtn">${icon('users')} + Add Patient</button>
+            <button class="btn-primary" id="openAssignFromPatientsBtn" style="background:var(--panel-2); color:var(--text); border:1px solid var(--border);">${icon('devices')} 🔗 Assign Device</button>
+          </div>
+        </div>
+        <div class="card">
+          <table>
+            <thead>
+              <tr>
+                <th>Patient ID & Name</th>
+                <th>Age / Gender</th>
+                <th>Location / Room</th>
+                <th>Status</th>
+                <th>Assigned Device</th>
+                <th>Trust Verification</th>
+                <th style="text-align:right;">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="patientsTableBody"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- DEVICES PAGE -->
+      <section class="page" id="page-devices">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; flex-wrap:wrap; gap:10px;">
+          <div class="tabs" id="deviceTabs" style="margin-bottom:0;"></div>
+          <div style="display:flex; gap:10px;">
+            <button class="btn-primary" id="openRegisterDeviceBtn">${icon('devices')} + Register Device</button>
+            <button class="btn-primary" id="openAssignDeviceBtn" style="background:var(--panel-2); color:var(--text); border:1px solid var(--border);">${icon('shield')} 🔗 Assign Device</button>
+          </div>
+        </div>
+        <div class="card">
+          <table>
+            <thead>
+              <tr>
+                <th>Device Name & ID</th>
+                <th>Device Type</th>
+                <th>Location / Ward</th>
+                <th>Trust Score</th>
+                <th>Status</th>
+                <th style="text-align:right;">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="devicesTableBody"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- TRUST ENGINE PAGE -->
+      <section class="page" id="page-trust">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; flex-wrap:wrap; gap:10px;">
+          <div style="display:flex; gap:10px; align-items:center;">
+            <label style="font-size:13px; font-weight:600; color:var(--text);">Inspect Device:</label>
+            <select id="teDeviceSelect" class="device-select" style="min-width:280px; padding:6px 12px; font-size:13px;"></select>
+          </div>
+          <div id="teDeviceStatusBadge" style="display:flex; gap:8px; align-items:center;"></div>
+        </div>
+        <div class="grid-3-eq">
+          <div class="card">
+            <div class="card-title">Current Trust Score</div>
+            <div class="card-sub" id="teCardSub">Device: Continuous AI Evaluation</div>
+            <div class="gauge-wrap">
+              <canvas id="teGauge" width="180" height="110"></canvas>
+              <div class="gauge-value" style="font-size:26px;">92%</div>
+              <div class="gauge-tag">Trusted</div>
+              <div class="gauge-foot" id="teGaugeFoot">Unified AI Policy Verification</div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-title">Trust Score Breakdown & XAI</div>
+            <div id="breakdownList" style="margin-top:8px;"></div>
+          </div>
+          <div class="card">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <div class="card-title">Trust Score History</div>
+              <div class="date-pill" style="padding:5px 10px;">Continuous Log ▾</div>
+            </div>
+            <canvas id="historyChart" height="150"></canvas>
+          </div>
+        </div>
+        <h2 class="section-title">Recent Trust Events & XAI Explanations</h2>
+        <div class="card">
+          <table>
+            <thead><tr><th>Time</th><th>Device & Event</th><th>Impact</th><th>Trust Score</th><th>Clinical & AI Rationale</th></tr></thead>
+            <tbody id="eventsTableBody"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- AI ANALYTICS PAGE -->
+      <section class="page" id="page-analytics">
+        <div class="small-cards" id="analyticsCards"></div>
+        <div class="grid-3">
+          <div class="card">
+            <div class="card-title">Top Risk Predictions</div>
+            <div id="topRiskList" style="margin-top:6px;"></div>
+          </div>
+          <div class="card">
+            <div class="card-title">Risk Prediction Trend</div>
+            <canvas id="riskTrendChart" height="120"></canvas>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">Dynamic AI Insights & Explainable Decision Engine</div>
+          <div class="insight-box" id="aiInsightsBox">
+            <ul id="aiInsightsList" style="margin:0; padding-left:18px; line-height:1.8;"></ul>
+          </div>
+        </div>
+      </section>
+
+      <!-- RISK HEAT MAP PAGE -->
+      <section class="page" id="page-heatmap">
+        <div class="heatmap-grid">
+          <div class="card">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <div class="card-title">Hospital Floor Plan</div>
+              <div class="date-pill" style="padding:5px 10px;">View by: Department ▾</div>
+            </div>
+            <div class="floor-legend" style="margin-top:12px;">
+              <span><span class="legend-dot" style="background:var(--green);"></span>Low Risk</span>
+              <span><span class="legend-dot" style="background:var(--amber);"></span>Medium Risk</span>
+              <span><span class="legend-dot" style="background:#fb923c;"></span>High Risk</span>
+              <span><span class="legend-dot" style="background:var(--red);"></span>Critical Risk</span>
+            </div>
+            <div class="floor-plan" id="floorPlan"></div>
+          </div>
+          <div class="card">
+            <div class="card-title">Risk Summary</div>
+            <div class="risk-summary-ring">
+              <canvas id="riskSummaryChart" width="170" height="105"></canvas>
+              <div class="risk-summary-value">128</div>
+              <div class="risk-summary-label">Total Devices</div>
+            </div>
+            <div id="riskSummaryList"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- MAINTENANCE ADVISOR -->
+      <section class="page" id="page-maintenance">
+        <div class="small-cards" id="maintCards"></div>
+        <div class="card">
+          <div class="card-title">Recommended Actions</div>
+          <table class="maint-table">
+            <thead><tr><th>Device</th><th>Issue</th><th>Priority</th><th>Recommended Action</th><th>Due Date</th><th>Status</th></tr></thead>
+            <tbody id="maintTableBody"></tbody>
+          </table>
+        </div>
+        <div class="eff-row">
+          <div class="card">
+            <div class="card-title">Maintenance Efficiency</div>
+            <div class="eff-ring">
+              <canvas id="effChart" width="170" height="105"></canvas>
+              <div class="eff-value">92%</div>
+              <div class="gauge-foot">↑ 8% from last month</div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-title">Potential Downtime Avoided</div>
+            <div style="text-align:center; padding-top:20px;">
+              <div class="kpi-value" style="font-size:34px;">36.5 <span style="font-size:16px; font-weight:600; color:var(--muted);">Hours</span></div>
+              <div class="kpi-foot up" style="margin-top:10px;">↑ 12.5 hrs from last month</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ALERTS -->
+      <section class="page" id="page-alerts">
+        <div class="alert-tabs">
+          <div class="alert-tab-group" id="alertTabGroup"></div>
+          <div class="mark-read">Mark all as read</div>
+        </div>
+        <div class="card" id="alertsList"></div>
+      </section>
+
+      <!-- REPORTS PAGE -->
+      <section class="page" id="page-reports">
+        <div class="reports-head">
+          <div class="report-tabs" id="reportTabsContainer">
+            <div class="report-tab active" data-tab="overview">Overview</div>
+            <div class="report-tab" data-tab="device">Device Reports</div>
+            <div class="report-tab" data-tab="maintenance">Maintenance Reports</div>
+            <div class="report-tab" data-tab="security">Security Reports</div>
+            <div class="report-tab" data-tab="compliance">Compliance Reports</div>
+          </div>
+          <div style="display:flex; gap:10px; align-items:center;">
+            <div class="date-pill" id="reportsDatePill">${icon('cal')} Continuous DB Log ▾</div>
+            <button class="btn-primary" id="customReportBtn">${icon('doc')} Export Report</button>
+          </div>
+        </div>
+        <div class="grid-4" id="reportKpis"></div>
+        <div class="card" id="reportContentCard">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+            <div class="card-title" id="reportSectionTitle">Real-Time Continuous Verification Records</div>
+            <span class="badge" style="background:var(--green-bg); color:var(--green);" id="reportRecordCount">Live Database</span>
+          </div>
+          <div id="reportList" style="margin-top:6px;"></div>
+        </div>
+      </section>
+
+      <!-- DEVICE PROFILES -->
+      <section class="page" id="page-profiles">
+        <div style="display:flex; justify-content:flex-end; margin-bottom:14px;">
+          <select class="device-select"><option>ECG Monitor - ICU 1 (ECG-ICU-001)</option><option>Pulse Oximeter - 12 (POX-12)</option><option>Infusion Pump - 07 (IP-07)</option></select>
+        </div>
+        <div class="profile-grid">
+          <div class="card">
+            <div class="profile-photo">${icon('devices')}</div>
+            <div class="profile-stat-row"><span style="color:var(--muted);">Status</span><span class="badge" style="background:var(--green-bg); color:var(--green);">● Online</span></div>
+            <div class="profile-stat-row"><span style="color:var(--muted);">Trust Score</span><span style="font-weight:800; color:var(--green);">92% Trusted</span></div>
+            <div class="profile-stat-row"><span style="color:var(--muted);">Last Seen</span><span style="font-weight:700;">2 mins ago</span></div>
+          </div>
+          <div class="card">
+            <div class="profile-tabs">
+              <div class="report-tab active">Overview</div>
+              <div class="report-tab">Information</div>
+              <div class="report-tab">Configuration</div>
+              <div class="report-tab">History</div>
+              <div class="report-tab">Logs</div>
+            </div>
+            <div class="info-grid" id="profileInfoGrid"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- SYSTEM SETTINGS -->
+      <section class="page" id="page-settings">
+        <div class="report-tabs">
+          <div class="report-tab">General</div>
+          <div class="report-tab active">Security</div>
+          <div class="report-tab">Notifications</div>
+          <div class="report-tab">Integrations</div>
+          <div class="report-tab">Backup</div>
+        </div>
+        <div class="card" id="settingsCard"></div>
+      </section>
+
+      <!-- USER MANAGEMENT -->
+      <section class="page" id="page-users">
+        <div class="card">
+          <table>
+            <thead><tr><th>User</th><th>Role</th><th>Department</th><th>Status</th><th>Last Active</th></tr></thead>
+            <tbody id="usersTableBody"></tbody>
+          </table>
+        </div>
+      </section>
+
+    </div>
+  </div>
+</div>
+
+<!-- USER PROFILE MODAL -->
+<div class="modal-backdrop" id="profileModal">
+  <div class="modal-card">
+    <div class="modal-top">
+      <button class="modal-close" id="modalClose">✕</button>
+    </div>
+    <div class="modal-avatar" id="modalAvatar">SW</div>
+    <div class="modal-body">
+      <div class="modal-name" id="modalUserName">Dr. Sarah Wilson</div>
+      <div class="modal-role" id="modalUserRole">System Administrator</div>
+      <div class="modal-status"><span class="dot"></span> Online</div>
+      <div class="modal-fields">
+        <div class="modal-field"><span>Email</span><span id="modalUserEmail">s.wilson@trustguard-iomt.com</span></div>
+        <div class="modal-field"><span>Hospital</span><span>City General Hospital</span></div>
+        <div class="modal-field"><span>Department</span><span>Biomedical Engineering</span></div>
+        <div class="modal-field"><span>Employee ID</span><span>ADM-0142</span></div>
+        <div class="modal-field"><span>Last Login</span><span id="modalLastLogin">Today, 10:24 AM</span></div>
+      </div>
+      <div class="modal-actions">
+        <button class="modal-btn">${icon('settings2')} Edit Profile</button>
+        <button class="modal-btn primary">${icon('gear')} Account Settings</button>
+      </div>
+      <div class="modal-actions">
+        <button class="modal-btn danger" style="flex:1;">Sign Out</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- PATIENT ADD / EDIT MODAL (Phase 10) -->
+<div class="modal-backdrop" id="patientModal">
+  <div class="modal-card-md">
+    <div class="modal-header-bar">
+      <h2 id="patientModalTitle">Register New Patient</h2>
+      <button class="modal-close-btn" id="closePatientModalBtn">✕</button>
+    </div>
+    <div class="modal-form-body">
+      <div class="form-error-banner" id="patientFormError"></div>
+      <form id="patientForm" onsubmit="return false;">
+        <div class="form-row">
+          <div class="form-group">
+            <label>Patient ID *</label>
+            <input type="text" id="patientIdInput" class="form-control" placeholder="e.g. PT-1048" required>
+          </div>
+          <div class="form-group">
+            <label>Full Name *</label>
+            <input type="text" id="patientNameInput" class="form-control" placeholder="e.g. Eleanor Vance" required>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Age *</label>
+            <input type="number" id="patientAgeInput" class="form-control" placeholder="e.g. 52" min="0" max="130" required>
+          </div>
+          <div class="form-group">
+            <label>Gender *</label>
+            <select id="patientGenderInput" class="form-control" required>
+              <option value="Male">Male</option>
+              <option value="Female">Female</option>
+              <option value="Other">Other</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Department *</label>
+            <select id="patientDeptInput" class="form-control" required>
+              <option value="ICU">ICU</option>
+              <option value="General Ward">General Ward</option>
+              <option value="Cardiology">Cardiology</option>
+              <option value="Emergency">Emergency</option>
+              <option value="Endocrinology">Endocrinology</option>
+              <option value="Surgery">Surgery</option>
+              <option value="Radiology">Radiology</option>
+              <option value="Pharmacy">Pharmacy</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Room / Bed *</label>
+            <input type="text" id="patientRoomInput" class="form-control" placeholder="e.g. ICU - Room 104" required>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Admission Status *</label>
+          <select id="patientStatusInput" class="form-control" required>
+            <option value="Admitted">Admitted</option>
+            <option value="Critical">Critical</option>
+            <option value="Discharged">Discharged</option>
+          </select>
+        </div>
+      </form>
+    </div>
+    <div class="modal-form-footer">
+      <button class="btn-action" id="cancelPatientBtn">Cancel</button>
+      <button class="btn-action primary" id="savePatientBtn">Save Patient</button>
+    </div>
+  </div>
+</div>
+
+<!-- DEVICE REGISTRATION MODAL (Phase 10) -->
+<div class="modal-backdrop" id="deviceModal">
+  <div class="modal-card-md">
+    <div class="modal-header-bar">
+      <h2>Register Medical IoT Device</h2>
+      <button class="modal-close-btn" id="closeDeviceModalBtn">✕</button>
+    </div>
+    <div class="modal-form-body">
+      <div class="form-error-banner" id="deviceFormError"></div>
+      
+      <!-- One-time provisioned key display -->
+      <div class="form-success-box" id="deviceSuccessBox">
+        <div style="font-weight:700; margin-bottom:6px; color:#fff;">✓ Device Registered Successfully!</div>
+        <div style="font-size:11.5px; color:var(--text); margin-bottom:8px;">Copy the Provisioning API Key now. It is hashed with SHA-256 and cannot be retrieved again:</div>
+        <div style="background:#0a0f1c; padding:8px 12px; border-radius:6px; border:1px solid var(--border); font-family:var(--font-mono); font-weight:700; color:var(--accent); display:flex; justify-content:space-between; align-items:center;">
+          <span id="provisionedKeyDisplay"></span>
+          <button class="btn-action" id="copyApiKeyBtn" style="margin-left:8px;">Copy</button>
+        </div>
+      </div>
+
+      <form id="deviceForm" onsubmit="return false;">
+        <div class="form-row">
+          <div class="form-group">
+            <label>Device ID / Serial *</label>
+            <input type="text" id="deviceIdInput" class="form-control" placeholder="e.g. ECG-ICU-003" required>
+          </div>
+          <div class="form-group">
+            <label>Device Name *</label>
+            <input type="text" id="deviceNameInput" class="form-control" placeholder="e.g. ECG Monitor - ICU 3" required>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Device Type *</label>
+            <select id="deviceTypeInput" class="form-control" required>
+              <option value="ECG Monitor">ECG Monitor</option>
+              <option value="Pulse Oximeter">Pulse Oximeter</option>
+              <option value="Infusion Pump">Infusion Pump</option>
+              <option value="BP Monitor">BP Monitor</option>
+              <option value="Temperature Sensor">Temperature Sensor</option>
+              <option value="Glucose Monitor">Glucose Monitor</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Department *</label>
+            <select id="deviceDeptInput" class="form-control" required>
+              <option value="ICU">ICU</option>
+              <option value="General Ward">General Ward</option>
+              <option value="Cardiology">Cardiology</option>
+              <option value="Emergency">Emergency</option>
+              <option value="Endocrinology">Endocrinology</option>
+              <option value="Pharmacy">Pharmacy</option>
+              <option value="Surgery">Surgery</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Location / Ward *</label>
+            <input type="text" id="deviceLocInput" class="form-control" placeholder="e.g. ICU - Room 103" required>
+          </div>
+          <div class="form-group">
+            <label>Firmware Version</label>
+            <input type="text" id="deviceFirmwareInput" class="form-control" value="v1.0.0">
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Initial Status</label>
+          <select id="deviceStatusInput" class="form-control">
+            <option value="Active">Active (Provisioned)</option>
+            <option value="At Risk">At Risk</option>
+            <option value="Isolated">Isolated</option>
+            <option value="Offline">Offline</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Custom API Key (Optional)</label>
+          <input type="password" id="deviceCustomKeyInput" class="form-control" placeholder="Leave blank to auto-generate secure token">
+        </div>
+      </form>
+    </div>
+    <div class="modal-form-footer" id="deviceModalFooter">
+      <button class="btn-action" id="cancelDeviceBtn">Cancel</button>
+      <button class="btn-action primary" id="saveDeviceBtn">Register Device</button>
+    </div>
+  </div>
+</div>
+
+<!-- DEVICE ↔ PATIENT ASSIGNMENT MODAL (Phase 10) -->
+<div class="modal-backdrop" id="assignModal">
+  <div class="modal-card-md">
+    <div class="modal-header-bar">
+      <h2>Bind Device to Patient</h2>
+      <button class="modal-close-btn" id="closeAssignModalBtn">✕</button>
+    </div>
+    <div class="modal-form-body">
+      <div class="form-error-banner" id="assignFormError"></div>
+      <p style="font-size:12px; color:var(--muted); margin-bottom:14px;">Select an admitted patient and an available Medical IoT device to bind for continuous AI-driven telemetry and trust verification.</p>
+      <form id="assignForm" onsubmit="return false;">
+        <div class="form-group">
+          <label>Select Patient *</label>
+          <select id="assignPatientSelect" class="form-control" required></select>
+        </div>
+        <div class="form-group">
+          <label>Select Medical IoT Device *</label>
+          <select id="assignDeviceSelect" class="form-control" required></select>
+        </div>
+      </form>
+    </div>
+    <div class="modal-form-footer">
+      <button class="btn-action" id="cancelAssignBtn">Cancel</button>
+      <button class="btn-action primary" id="confirmAssignBtn">Confirm Binding</button>
+    </div>
+  </div>
+</div>
+
+<!-- PATIENT DETAIL MODAL (Phase 10) -->
+<div class="modal-backdrop" id="patientDetailModal">
+  <div class="modal-card-lg">
+    <div class="modal-header-bar">
+      <h2 id="pDetailTitle">Patient Clinical & Trust Record</h2>
+      <button class="modal-close-btn" id="closePatientDetailBtn">✕</button>
+    </div>
+    <div class="modal-form-body">
+      <div class="details-kv-grid" id="pDetailGrid"></div>
+      <div class="card" style="margin-top:14px; background:#0a0f1c; border-color:var(--border-soft);">
+        <div class="card-title" style="font-size:12px; margin-bottom:8px;">Live Telemetry & AI Verification Status</div>
+        <div id="pDetailTelemetry"></div>
+      </div>
+    </div>
+    <div class="modal-form-footer">
+      <button class="btn-action" id="pDetailEditBtn">Edit Patient</button>
+      <button class="btn-action primary" id="pDetailAssignBtn">Change Device</button>
+    </div>
+  </div>
+</div>
+
+<!-- DEVICE DETAIL MODAL (Phase 10) -->
+<div class="modal-backdrop" id="deviceDetailModal">
+  <div class="modal-card-lg">
+    <div class="modal-header-bar">
+      <h2 id="dDetailTitle">Medical IoT Device Profile</h2>
+      <button class="modal-close-btn" id="closeDeviceDetailBtn">✕</button>
+    </div>
+    <div class="modal-form-body">
+      <div class="details-kv-grid" id="dDetailGrid"></div>
+      <div class="card" style="margin-top:14px; background:#0a0f1c; border-color:var(--border-soft);">
+        <div class="card-title" style="font-size:12px; margin-bottom:8px;">Dual-Model AI Trust Breakdown</div>
+        <div id="dDetailTrust"></div>
+      </div>
+    </div>
+    <div class="modal-form-footer">
+      <button class="btn-action primary" id="dDetailAssignBtn">Assign to Patient</button>
+    </div>
+  </div>
+</div>
+
+<script src="script.js"></script>
+</body>
+</html>

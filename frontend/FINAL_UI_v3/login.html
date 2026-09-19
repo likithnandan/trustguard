@@ -1,0 +1,628 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>An Intelligent AI-Driven Continuous Trust Verification for Medical IoT</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg: #0a0e16;
+    --bg-2: #0d1220;
+    --panel: #0f1524;
+    --panel-border: rgba(255,255,255,0.07);
+    --accent: #3ec9ff;
+    --accent-soft: rgba(62,201,255,0.14);
+    --accent-dim: #1a4a5e;
+    --text: #e6ebf5;
+    --text-muted: #6b7690;
+    --good: #2dd4a0;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  html,body{height:100%;}
+  body{
+    background:var(--bg);
+    color:var(--text);
+    font-family:'Inter', sans-serif;
+    overflow-y:auto;
+    overflow-x:hidden;
+    position:relative;
+  }
+
+  .grid-bg{
+    position:fixed; inset:0;
+    background-image:
+      linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px);
+    background-size:48px 48px;
+    mask-image: radial-gradient(ellipse 70% 60% at 50% 40%, black 20%, transparent 75%);
+    pointer-events:none;
+  }
+  .glow-orb{
+    position:fixed; width:640px; height:640px; border-radius:50%;
+    background: radial-gradient(circle, rgba(62,201,255,0.10) 0%, transparent 70%);
+    top:50%; left:50%; transform:translate(-50%,-55%);
+    pointer-events:none;
+  }
+
+  .stage{
+    position:relative; z-index:2;
+    min-height:100vh; display:flex; flex-direction:column; align-items:center; justify-content:center;
+    padding:30px 20px;
+    overflow-y:auto;
+  }
+
+  .ecg-wrap{
+    width:min(560px, 86vw); height:90px; opacity:1;
+    animation: ecgFadeOut 0.6s ease forwards;
+    animation-delay: 2.15s;
+  }
+  .ecg-path{
+    fill:none; stroke:var(--accent); stroke-width:2.2; stroke-linecap:round; stroke-linejoin:round;
+    filter: drop-shadow(0 0 6px rgba(62,201,255,0.65));
+    stroke-dasharray: 1000;
+    stroke-dashoffset: 1000;
+    animation: drawEcg 1.9s cubic-bezier(.65,0,.35,1) forwards;
+  }
+  @keyframes drawEcg{ to{ stroke-dashoffset:0; } }
+  @keyframes ecgFadeOut{ to{ opacity:0; transform:scale(0.85); height:0; margin:0; } }
+
+  .shield-wrap{
+    position:absolute; width:96px; height:96px; opacity:0;
+    animation: shieldFadeIn 0.5s ease forwards;
+    animation-delay: 2.5s;
+  }
+  @keyframes shieldFadeIn{ to{ opacity:1; } }
+  .shield-outline{
+    fill:none; stroke:var(--accent); stroke-width:2.4; stroke-linejoin:round; stroke-linecap:round;
+    filter: drop-shadow(0 0 8px rgba(62,201,255,0.7));
+    stroke-dasharray: 300;
+    stroke-dashoffset: 300;
+    animation: drawShield 1s cubic-bezier(.65,0,.35,1) forwards;
+    animation-delay: 2.55s;
+  }
+  @keyframes drawShield{ to{ stroke-dashoffset:0; } }
+  .shield-fill{
+    opacity:0;
+    animation: fillShield 0.7s ease forwards;
+    animation-delay: 3.5s;
+  }
+  @keyframes fillShield{ to{ opacity:1; } }
+  .shield-check{
+    fill:none; stroke:var(--bg); stroke-width:3; stroke-linecap:round; stroke-linejoin:round;
+    stroke-dasharray:40; stroke-dashoffset:40;
+    animation: drawCheck 0.4s ease forwards;
+    animation-delay: 3.9s;
+  }
+  @keyframes drawCheck{ to{ stroke-dashoffset:0; } }
+  .shield-pulse{
+    animation: shieldPulse 2.4s ease-in-out infinite;
+    animation-delay: 4.3s;
+    opacity:0;
+  }
+  @keyframes shieldPulse{
+    0%,100%{ filter: drop-shadow(0 0 10px rgba(62,201,255,0.55)); opacity:1; }
+    50%{ filter: drop-shadow(0 0 22px rgba(62,201,255,0.9)); opacity:1; }
+  }
+
+  .content{
+    margin-top:150px;
+    display:flex; flex-direction:column; align-items:center; text-align:center;
+    opacity:0;
+    animation: contentIn 0.7s ease forwards;
+    animation-delay: 4.0s;
+    transform:translateY(10px);
+    width:100%;
+  }
+  @keyframes contentIn{ to{ opacity:1; transform:translateY(0); } }
+
+  .eyebrow{
+    font-family:'JetBrains Mono', monospace;
+    font-size:11.5px; letter-spacing:2.5px; text-transform:uppercase;
+    color:var(--accent); margin-bottom:14px;
+    display:flex; align-items:center; gap:8px;
+  }
+  .eyebrow .dot{ width:6px; height:6px; border-radius:50%; background:var(--good); box-shadow:0 0 8px var(--good); }
+
+  h1{
+    font-family:'Space Grotesk', sans-serif; font-weight:600;
+    font-size:clamp(20px, 3.2vw, 32px);
+    line-height:1.25; max-width:680px;
+    letter-spacing:-0.01em;
+  }
+  h1 span{ color:var(--accent); }
+
+  .subtitle{
+    margin-top:14px; color:var(--text-muted); font-size:14px; max-width:480px; line-height:1.6;
+  }
+
+  .login-card{
+    margin-top:30px; width:min(380px, 88vw);
+    background:var(--panel); border:1px solid var(--panel-border); border-radius:16px;
+    padding:26px 24px;
+  }
+  .field{ margin-bottom:14px; text-align:left; }
+  .field label{ font-size:11.5px; color:var(--text-muted); font-weight:500; display:block; margin-bottom:6px; letter-spacing:0.2px; }
+  .field input, .field select{
+    width:100%; background:#0a0f1c; border:1px solid var(--panel-border); border-radius:9px;
+    padding:11px 13px; color:var(--text); font-family:'Inter', sans-serif; font-size:13.5px;
+    outline:none; transition:border-color .15s;
+  }
+  .field input:focus, .field select:focus{ border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-soft); }
+  .field-hint{ font-size:10.8px; color:var(--text-muted); margin-top:5px; }
+  .field-hint.error{ color:#ff8fa3; }
+  .field-hint.ok{ color:var(--good); }
+
+  .strength-meter{ display:flex; gap:4px; margin-top:7px; }
+  .strength-bar{ height:4px; flex:1; border-radius:2px; background:rgba(255,255,255,0.08); transition:background .2s; }
+  .strength-label{ font-size:10.8px; margin-top:5px; font-weight:600; }
+  .strength-label.weak{ color:#ff5470; }
+  .strength-label.medium{ color:#ffb020; }
+  .strength-label.strong{ color:var(--good); }
+
+  .enter-btn{
+    width:100%; margin-top:6px; padding:12px; border-radius:9px; border:none; cursor:pointer;
+    background:linear-gradient(135deg, var(--accent), #2f9fd8);
+    color:#03151f; font-family:'Space Grotesk', sans-serif; font-weight:600; font-size:14px;
+    box-shadow:0 0 18px rgba(62,201,255,0.35);
+    transition:transform .15s, box-shadow .15s;
+  }
+  .enter-btn:hover{ transform:translateY(-1px); box-shadow:0 0 26px rgba(62,201,255,0.5); }
+  .enter-btn:disabled{ opacity:0.6; cursor:not-allowed; transform:none; }
+  .helper-row{ display:flex; justify-content:space-between; margin-top:14px; font-size:11.5px; color:var(--text-muted); flex-wrap:wrap; gap:6px; }
+  #authToggleText a, .helper-row a{ color:var(--accent); text-decoration:none; }
+
+  .form-error{
+    background:rgba(255,77,106,0.1); border:1px solid rgba(255,77,106,0.35); color:#ff8fa3;
+    padding:10px 12px; border-radius:9px; font-size:12.5px; margin-bottom:14px;
+  }
+
+  .verify-line{
+    margin-top:18px; font-family:'JetBrains Mono', monospace; font-size:11px; color:var(--text-muted);
+    display:flex; align-items:center; justify-content:center; gap:6px;
+  }
+  .verify-line .bar{ width:70px; height:3px; background:rgba(255,255,255,0.08); border-radius:2px; overflow:hidden; }
+  .verify-line .bar span{ display:block; height:100%; width:0%; background:var(--accent); animation: barFill 1s ease forwards; animation-delay:4.3s; }
+  @keyframes barFill{ to{ width:100%; } }
+
+  /* FORGOT PASSWORD MODAL */
+  .fa-backdrop{ position:fixed; inset:0; background:rgba(3,6,12,0.75); backdrop-filter:blur(3px);
+    display:none; align-items:center; justify-content:center; z-index:300; }
+  .fa-backdrop.open{ display:flex; }
+  .fa-card{ width:min(380px, 90vw); background:var(--panel); border:1px solid var(--panel-border);
+    border-radius:16px; padding:28px 26px; position:relative; max-height:90vh; overflow-y:auto; }
+  .fa-close{ position:absolute; top:14px; right:14px; width:26px; height:26px; border-radius:50%;
+    background:rgba(255,255,255,0.08); border:none; color:var(--text); cursor:pointer; }
+  .fa-card h3{ font-family:'Space Grotesk',sans-serif; font-size:17px; margin-bottom:6px; }
+  .fa-sub{ font-size:12.5px; color:var(--text-muted); margin-bottom:16px; line-height:1.5; }
+  .fa-card label{ font-size:11px; color:var(--text-muted); font-weight:500; display:block; margin-bottom:6px; }
+  .fa-card input{ width:100%; background:#0a0f1c; border:1px solid var(--panel-border); border-radius:9px;
+    padding:11px 13px; color:var(--text); font-family:'Inter',sans-serif; font-size:13.5px; outline:none; margin-bottom:6px; }
+  .fa-card input:focus{ border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-soft); }
+  .fa-card .enter-btn{ margin-top:12px; }
+  .fa-demo-note{ margin-top:14px; font-size:11px; color:var(--text-muted); background:rgba(255,176,32,0.08);
+    border:1px solid rgba(255,176,32,0.25); border-radius:8px; padding:9px 11px; line-height:1.5; }
+  .fa-code-display{ font-family:'JetBrains Mono',monospace; font-size:26px; letter-spacing:8px; text-align:center;
+    color:var(--accent); background:#0a0f1c; border:1px solid var(--panel-border); border-radius:10px;
+    padding:14px; margin-bottom:16px; }
+  .fa-success-icon{ width:56px; height:56px; border-radius:50%; background:rgba(45,212,160,0.15); color:#2dd4a0;
+    display:flex; align-items:center; justify-content:center; font-size:26px; margin:0 auto 14px; }
+</style>
+</head>
+<body>
+
+<div class="grid-bg"></div>
+<div class="glow-orb"></div>
+
+<div class="stage">
+
+  <div class="ecg-wrap">
+    <svg viewBox="0 0 560 90" width="100%" height="100%">
+      <path class="ecg-path" d="M0,45 L110,45 L135,45 L150,15 L168,78 L184,45 L215,45 L228,30 L242,45 L560,45" />
+    </svg>
+  </div>
+
+  <div class="shield-wrap">
+    <svg viewBox="0 0 96 96" width="100%" height="100%">
+      <path class="shield-outline" d="M48 6 L86 20 V46 C86 70 70 86 48 92 C26 86 10 70 10 46 V20 Z" />
+      <path class="shield-fill" d="M48 10 L82 23 V46 C82 68 67 82 48 88 C29 82 14 68 14 46 V23 Z" fill="var(--accent-soft)" stroke="none" />
+      <g class="shield-fill"><circle class="shield-pulse" cx="48" cy="46" r="4" fill="var(--accent)" /></g>
+      <path class="shield-check" d="M34 47 L44 57 L64 35" />
+    </svg>
+  </div>
+
+  <div class="content">
+    <div class="eyebrow"><span class="dot"></span> SYSTEM ONLINE</div>
+    <h1>An Intelligent <span>AI-Driven</span> Continuous Trust Verification for Medical IoT</h1>
+    <div class="subtitle">Continuously verifying device integrity and data authenticity across your connected medical devices.</div>
+
+    <div class="login-card">
+      <div id="loginError" class="form-error" style="display:none;"></div>
+
+      <div id="signupOnlyFields" style="display:none;">
+        <div class="field">
+          <label>FULL NAME</label>
+          <input type="text" id="signupName" placeholder="Dr. Jane Doe">
+        </div>
+        <div class="field">
+          <label>ROLE</label>
+          <select id="signupRole">
+            <option>Administrator</option>
+            <option>Doctor</option>
+            <option>Technician</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="field">
+        <label>EMAIL</label>
+        <input type="email" id="authEmail" placeholder="yourname@gmail.com">
+        <div class="field-hint" id="emailHint" style="display:none;">Only @gmail.com addresses are accepted.</div>
+      </div>
+      <div class="field">
+        <label>PASSWORD</label>
+        <input type="password" id="authPassword" placeholder="••••••••••">
+        <div id="strengthMeterWrap" style="display:none;">
+          <div class="strength-meter">
+            <div class="strength-bar" id="sbar1"></div>
+            <div class="strength-bar" id="sbar2"></div>
+            <div class="strength-bar" id="sbar3"></div>
+          </div>
+          <div class="strength-label" id="strengthLabel"></div>
+        </div>
+      </div>
+      <button class="enter-btn" id="authSubmitBtn">Enter Dashboard →</button>
+      <div class="helper-row">
+        <span id="authToggleText">New here? <a href="#" id="toggleToSignup">Create an account</a></span>
+        <a href="#" id="forgotLink">Forgot access?</a>
+      </div>
+    </div>
+
+    <!-- OTP VERIFICATION PANEL - shown after signup, or after login for Doctors -->
+    <div class="login-card" id="otpPanel" style="display:none;">
+      <div id="otpError" class="form-error" style="display:none;"></div>
+      <h3 style="font-family:'Space Grotesk',sans-serif; font-size:16px; margin-bottom:6px;" id="otpTitle">Verify Your Email</h3>
+      <p style="font-size:12.5px; color:var(--text-muted); margin-bottom:16px; line-height:1.5;" id="otpSub">We sent a 6-digit code to your email.</p>
+      <div class="field">
+        <label>VERIFICATION CODE</label>
+        <input type="text" id="otpCodeInput" maxlength="6" placeholder="000000">
+      </div>
+      <button class="enter-btn" id="otpVerifyBtn">Verify →</button>
+      <div class="helper-row">
+        <span>Didn't get it? <a href="#" id="otpResendLink">Resend code</a></span>
+        <a href="#" id="otpCancelLink">Cancel</a>
+      </div>
+    </div>
+
+    <div class="verify-line">
+      <span>VERIFYING TRUST</span>
+      <span class="bar"><span></span></span>
+    </div>
+  </div>
+
+</div>
+
+<!-- FORGOT ACCESS MODAL -->
+<div class="fa-backdrop" id="faBackdrop">
+  <div class="fa-card">
+    <button class="fa-close" id="faClose">✕</button>
+
+    <div class="fa-step" id="faStep1">
+      <h3>Reset Access</h3>
+      <p class="fa-sub">Enter your account email and we'll send a verification code.</p>
+      <label>EMAIL</label>
+      <input type="email" id="faEmail" placeholder="yourname@gmail.com">
+      <button class="enter-btn" id="faSendCode">Send Verification Code →</button>
+      <div class="fa-demo-note">A 6-digit verification code will be sent to this email address. It expires in 10 minutes.</div>
+    </div>
+
+    <div class="fa-step" id="faStep2" style="display:none;">
+      <h3>Enter Verification Code</h3>
+      <p class="fa-sub">Check your email — we sent a 6-digit code to <span id="faSentToEmail"></span>.</p>
+      <label>ENTER CODE</label>
+      <input type="text" id="faCodeInput" maxlength="6" placeholder="000000">
+      <button class="enter-btn" id="faVerifyCode">Verify Code →</button>
+    </div>
+
+    <div class="fa-step" id="faStep3" style="display:none;">
+      <h3>Set New Password</h3>
+      <p class="fa-sub">Choose a new password for your account (min. 8 characters, mixed case, number, symbol).</p>
+      <label>NEW PASSWORD</label>
+      <input type="password" id="faNewPass" placeholder="Enter new password">
+      <div class="strength-meter" id="faStrengthMeterWrap" style="display:none;">
+        <div class="strength-bar" id="faSbar1"></div>
+        <div class="strength-bar" id="faSbar2"></div>
+        <div class="strength-bar" id="faSbar3"></div>
+      </div>
+      <div class="strength-label" id="faStrengthLabel"></div>
+      <label style="margin-top:10px;">CONFIRM PASSWORD</label>
+      <input type="password" id="faConfirmPass" placeholder="Confirm new password">
+      <button class="enter-btn" id="faResetSubmit">Reset Password →</button>
+    </div>
+
+    <div class="fa-step" id="faStep4" style="display:none; text-align:center;">
+      <div class="fa-success-icon">✓</div>
+      <h3>Password Reset</h3>
+      <p class="fa-sub">Your password has been updated. You can now log in with your new password.</p>
+      <button class="enter-btn" id="faDone">Back to Login</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  const API_BASE = 'http://127.0.0.1:8000';
+
+  // ---------- PASSWORD STRENGTH (client-side mirror of backend logic) ----------
+  function passwordStrength(pw){
+    let score = 0;
+    if(pw.length >= 8) score++;
+    if(pw.length >= 12) score++;
+    if(/[a-z]/.test(pw) && /[A-Z]/.test(pw)) score++;
+    if(/\d/.test(pw)) score++;
+    if(/[^A-Za-z0-9]/.test(pw)) score++;
+    if(score <= 2) return 'weak';
+    if(score <= 3) return 'medium';
+    return 'strong';
+  }
+  function updateStrengthUI(pw, wrapId, bar1Id, bar2Id, bar3Id, labelId){
+    const wrap = document.getElementById(wrapId);
+    const label = document.getElementById(labelId);
+    if(!pw){ wrap.style.display = 'none'; label.textContent = ''; return; }
+    wrap.style.display = 'flex';
+    const strength = passwordStrength(pw);
+    const bars = [document.getElementById(bar1Id), document.getElementById(bar2Id), document.getElementById(bar3Id)];
+    const colors = { weak: '#ff5470', medium: '#ffb020', strong: '#2dd4a0' };
+    const counts = { weak: 1, medium: 2, strong: 3 };
+    bars.forEach((b, i) => { b.style.background = i < counts[strength] ? colors[strength] : 'rgba(255,255,255,0.08)'; });
+    label.textContent = strength.charAt(0).toUpperCase() + strength.slice(1) + ' password';
+    label.className = 'strength-label ' + strength;
+  }
+
+  document.getElementById('authPassword').addEventListener('input', (e)=>{
+    updateStrengthUI(e.target.value, 'strengthMeterWrap', 'sbar1', 'sbar2', 'sbar3', 'strengthLabel');
+  });
+  document.getElementById('faNewPass').addEventListener('input', (e)=>{
+    updateStrengthUI(e.target.value, 'faStrengthMeterWrap', 'faSbar1', 'faSbar2', 'faSbar3', 'faStrengthLabel');
+  });
+
+  // ---------- EMAIL GMAIL-ONLY VALIDATION (client-side mirror) ----------
+  function isGmail(email){ return /^[^\s@]+@gmail\.com$/i.test(email.trim()); }
+
+  document.getElementById('authEmail').addEventListener('input', (e)=>{
+    const hint = document.getElementById('emailHint');
+    const val = e.target.value.trim();
+    if(!val){ hint.style.display = 'none'; return; }
+    hint.style.display = 'block';
+    if(isGmail(val)){ hint.textContent = 'Looks good.'; hint.className = 'field-hint ok'; }
+    else { hint.textContent = 'Only @gmail.com addresses are accepted.'; hint.className = 'field-hint error'; }
+  });
+
+  // ---------- LOGIN / SIGNUP TOGGLE ----------
+  let isSignupMode = false;
+  const signupFields = document.getElementById('signupOnlyFields');
+  const submitBtn = document.getElementById('authSubmitBtn');
+  const toggleLink = document.getElementById('toggleToSignup');
+  const toggleText = document.getElementById('authToggleText');
+  const loginError = document.getElementById('loginError');
+
+  toggleLink.addEventListener('click', (e)=>{
+    e.preventDefault();
+    isSignupMode = !isSignupMode;
+    signupFields.style.display = isSignupMode ? 'block' : 'none';
+    submitBtn.textContent = isSignupMode ? 'Create Account →' : 'Enter Dashboard →';
+    toggleText.innerHTML = isSignupMode
+      ? 'Already have an account? <a href="#" id="toggleToSignup2">Log in</a>'
+      : 'New here? <a href="#" id="toggleToSignup2">Create an account</a>';
+    document.getElementById('toggleToSignup2').addEventListener('click', (e2)=>{ e2.preventDefault(); toggleLink.click(); });
+    loginError.style.display = 'none';
+  });
+
+  function showError(msg){
+    loginError.textContent = msg;
+    loginError.style.display = 'block';
+  }
+
+  // ---------- OTP VERIFICATION PANEL ----------
+  const loginCardEl = document.querySelector('.login-card');
+  const otpPanel = document.getElementById('otpPanel');
+  const otpError = document.getElementById('otpError');
+  let pendingOtpEmail = '';
+  let pendingOtpPurpose = '';
+
+  function showOtpPanel(email, purpose){
+    pendingOtpEmail = email;
+    pendingOtpPurpose = purpose;
+    loginCardEl.style.display = 'none';
+    otpPanel.style.display = 'block';
+    otpError.style.display = 'none';
+    document.getElementById('otpCodeInput').value = '';
+    if(purpose === 'signup'){
+      document.getElementById('otpTitle').textContent = 'Verify Your Email';
+      document.getElementById('otpSub').textContent = `We sent a 6-digit code to ${email}. Enter it to activate your account.`;
+    } else {
+      document.getElementById('otpTitle').textContent = 'Enter Login Code';
+      document.getElementById('otpSub').textContent = `As a Doctor account, we sent a 6-digit login code to ${email} for this sign-in.`;
+    }
+  }
+  function hideOtpPanel(){
+    otpPanel.style.display = 'none';
+    loginCardEl.style.display = 'block';
+  }
+  function showOtpError(msg){
+    otpError.textContent = msg;
+    otpError.style.display = 'block';
+  }
+
+  document.getElementById('otpCancelLink').addEventListener('click', (e)=>{ e.preventDefault(); hideOtpPanel(); });
+
+  document.getElementById('otpResendLink').addEventListener('click', async (e)=>{
+    e.preventDefault();
+    try{
+      const res = await fetch(`${API_BASE}/auth/resend-otp`, {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({email: pendingOtpEmail, purpose: pendingOtpPurpose})
+      });
+      const data = await res.json();
+      if(!res.ok){ showOtpError(data.detail || 'Could not resend code.'); return; }
+      showOtpError('A new code has been sent.');
+      otpError.style.background = 'rgba(45,212,160,0.1)'; otpError.style.borderColor='rgba(45,212,160,0.35)'; otpError.style.color='#7fe8c8';
+    } catch(err){ showOtpError('Could not reach the backend.'); }
+  });
+
+  document.getElementById('otpVerifyBtn').addEventListener('click', async ()=>{
+    const code = document.getElementById('otpCodeInput').value.trim();
+    if(!code || code.length !== 6){ showOtpError('Please enter the 6-digit code.'); return; }
+    const endpoint = pendingOtpPurpose === 'signup' ? '/auth/verify-signup-otp' : '/auth/verify-login-otp';
+    try{
+      const res = await fetch(`${API_BASE}${endpoint}`, {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({email: pendingOtpEmail, code})
+      });
+      const data = await res.json();
+      if(!res.ok){ showOtpError(data.detail || 'Verification failed.'); return; }
+
+      localStorage.setItem('authToken', data.token);
+      localStorage.setItem('userEmail', data.email);
+      localStorage.setItem('userName', data.full_name);
+      localStorage.setItem('userRole', data.role);
+      window.location.href = (data.role === 'Doctor') ? 'doctor.html' : 'index.html';
+    } catch(err){ showOtpError('Could not reach the backend.'); }
+  });
+
+  // ---------- LOGIN / SIGNUP SUBMIT ----------
+  submitBtn.addEventListener('click', async ()=>{
+    const email = document.getElementById('authEmail').value.trim();
+    const password = document.getElementById('authPassword').value;
+    loginError.style.display = 'none';
+
+    if(!email || !password){ showError('Please enter both email and password.'); return; }
+    if(!isGmail(email)){ showError('Only @gmail.com email addresses are accepted.'); return; }
+    if(isSignupMode && passwordStrength(password) === 'weak'){
+      showError('Password is too weak. Use at least 8 characters, mixing uppercase, lowercase, a number, and a symbol.');
+      return;
+    }
+
+    submitBtn.textContent = isSignupMode ? 'Creating account…' : 'Verifying…';
+    submitBtn.disabled = true;
+
+    try{
+      if(isSignupMode){
+        const full_name = document.getElementById('signupName').value.trim();
+        const role = document.getElementById('signupRole').value;
+        if(!full_name){ showError('Please enter your full name.'); submitBtn.disabled = false; submitBtn.textContent = 'Create Account →'; return; }
+
+        const res = await fetch(`${API_BASE}/auth/signup`, {
+          method:'POST', headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({email, password, full_name, role})
+        });
+        const data = await res.json();
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Create Account →';
+        if(!res.ok){ showError(data.detail || 'Signup failed.'); return; }
+
+        // Signup now always requires email verification before login.
+        showOtpPanel(data.email, 'signup');
+
+      } else {
+        const res = await fetch(`${API_BASE}/auth/login`, {
+          method:'POST', headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({email, password})
+        });
+        const data = await res.json();
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Enter Dashboard →';
+
+        if(res.status === 403 && data.detail && data.detail.toLowerCase().includes('not verified')){
+          // Backend already sent a fresh signup OTP in this case.
+          showOtpPanel(email, 'signup');
+          return;
+        }
+        if(!res.ok){ showError(data.detail || 'Login failed.'); return; }
+
+        if(data.requires_otp){
+          // Doctor accounts require a fresh OTP every login.
+          showOtpPanel(data.email, 'login');
+          return;
+        }
+
+        localStorage.setItem('authToken', data.token);
+        localStorage.setItem('userEmail', data.email);
+        localStorage.setItem('userName', data.full_name);
+        localStorage.setItem('userRole', data.role);
+        window.location.href = (data.role === 'Doctor') ? 'doctor.html' : 'index.html';
+      }
+    } catch(err){
+      showError('Could not reach the backend. Is backend.py running on port 8000?');
+      submitBtn.disabled = false;
+      submitBtn.textContent = isSignupMode ? 'Create Account →' : 'Enter Dashboard →';
+    }
+  });
+
+  // ---------- FORGOT PASSWORD (real backend calls) ----------
+  const faBackdrop = document.getElementById('faBackdrop');
+  const faSteps = ['faStep1','faStep2','faStep3','faStep4'].map(id => document.getElementById(id));
+  function faShowStep(idx){ faSteps.forEach((s,i)=> s.style.display = i===idx ? 'block' : 'none'); }
+
+  document.getElementById('forgotLink').addEventListener('click', (e)=>{
+    e.preventDefault();
+    faShowStep(0);
+    faBackdrop.classList.add('open');
+  });
+  document.getElementById('faClose').addEventListener('click', ()=> faBackdrop.classList.remove('open'));
+  faBackdrop.addEventListener('click', (e)=>{ if(e.target === faBackdrop) faBackdrop.classList.remove('open'); });
+
+  let faEmailForReset = '';
+  document.getElementById('faSendCode').addEventListener('click', async ()=>{
+    const email = document.getElementById('faEmail').value.trim();
+    if(!email){ alert('Please enter your email.'); return; }
+    if(!isGmail(email)){ alert('Only @gmail.com email addresses are accepted.'); return; }
+    faEmailForReset = email;
+    try{
+      const res = await fetch(`${API_BASE}/auth/forgot-password`, {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({email})
+      });
+      const data = await res.json();
+      if(!res.ok){ alert(data.detail || 'Something went wrong.'); return; }
+      document.getElementById('faSentToEmail').textContent = email;
+      faShowStep(1);
+    } catch(err){
+      alert('Could not reach the backend. Is backend.py running on port 8000?');
+    }
+  });
+
+  document.getElementById('faVerifyCode').addEventListener('click', ()=>{
+    const entered = document.getElementById('faCodeInput').value.trim();
+    if(!entered || entered.length !== 6){ alert('Please enter the 6-digit code.'); return; }
+    faShowStep(2);
+    document.getElementById('faStep3').dataset.code = entered;
+  });
+
+  document.getElementById('faResetSubmit').addEventListener('click', async ()=>{
+    const p1 = document.getElementById('faNewPass').value;
+    const p2 = document.getElementById('faConfirmPass').value;
+    if(passwordStrength(p1) === 'weak'){ alert('Password is too weak. Use at least 8 characters, mixing uppercase, lowercase, a number, and a symbol.'); return; }
+    if(p1 !== p2){ alert('Passwords do not match.'); return; }
+    const code = document.getElementById('faStep3').dataset.code;
+
+    try{
+      const res = await fetch(`${API_BASE}/auth/reset-password`, {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({email: faEmailForReset, code, new_password: p1})
+      });
+      const data = await res.json();
+      if(!res.ok){ alert(data.detail || 'Reset failed. The code may be incorrect or expired.'); return; }
+      faShowStep(3);
+    } catch(err){
+      alert('Could not reach the backend. Is backend.py running on port 8000?');
+    }
+  });
+
+  document.getElementById('faDone').addEventListener('click', ()=>{
+    faBackdrop.classList.remove('open');
+  });
+</script>
+
+</body>
+</html>
