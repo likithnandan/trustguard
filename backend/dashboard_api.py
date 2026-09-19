@@ -190,7 +190,7 @@ def get_dashboard_summary(user: Dict[str, Any] = Depends(get_current_authenticat
             },
             "security": {
                 "secure_transmissions": "100%",
-                "encryption": "AES-256 + HMAC SHA-256",
+                "encryption": "Token-Authenticated (SHA-256)",
                 "data_authenticity_score": f"{avg_auth_score}%",
                 "device_health_score": f"{avg_device_score}%",
                 "active_locations": locations_count
@@ -905,8 +905,8 @@ def get_dashboard_reports(
     - Overview: System health, total alerts, devices at risk, maintenance tasks
     - Device Reports: Comprehensive device inventory, trust scores, and assignments
     - Maintenance Reports: Battery status, sensor calibration, hardware health
-    - Security Reports: Data authenticity verification, tampering attempts blocked, AES-256 logs
-    - Compliance Reports: HIPAA alignment, audit readiness, verified transmissions
+    - Security Reports: Data authenticity verification, tampering attempts blocked, transmission authentication logs
+    - Compliance Reports: HIPAA-aligned security considerations, audit readiness, verified transmissions
     """
     seed_hospital_demo_patients_if_empty()
     conn = database.get_db()
@@ -998,7 +998,7 @@ def get_dashboard_reports(
 
     elif report_type == "security":
         kpis = [
-            {"label": "Secure Transmissions", "value": "100%", "foot": "AES-256 + HMAC SHA-256", "color": "green", "gauge": True},
+            {"label": "Secure Transmissions", "value": "100%", "foot": "Token Auth (SHA-256)", "color": "green", "gauge": True},
             {"label": "Tampering Attempts Blocked", "value": critical_count, "foot": "Model B Data Alteration & Spoofing", "color": "red" if critical_count > 0 else "blue", "gauge": False},
             {"label": "Data Authenticity Score", "value": "97.4%", "foot": "Model B average accuracy", "color": "green", "gauge": False},
             {"label": "Active Security Alerts", "value": total_alerts, "foot": f"{critical_count} critical incidents", "color": "red" if total_alerts > 0 else "blue", "gauge": False}
@@ -1013,7 +1013,7 @@ def get_dashboard_reports(
                 "col1": f"{r['device_name']} ({r['device_id']})",
                 "col2": f"Auth Subscore: {round(float(r['data_authenticity_subscore'] or 98))}%",
                 "col3": "Critical Threat" if (r["final_trust_score"] and r["final_trust_score"] < 50) else ("Network Anomaly" if (r["final_trust_score"] and r["final_trust_score"] < 80) else "Authentic"),
-                "col4": "AES-256 + HMAC Validated",
+                "col4": "Token-Authenticated (SHA-256)",
                 "col5": r["decision"] or "Accept",
                 "col6": _calculate_time_ago(r["evaluated_at"])
             }
@@ -1023,22 +1023,22 @@ def get_dashboard_reports(
 
     elif report_type == "compliance":
         kpis = [
-            {"label": "Compliance Score", "value": "98.5%", "foot": "HIPAA & IoMT security standards", "color": "green", "gauge": True},
-            {"label": "Stateful Audit Trails", "value": total_evals, "foot": "Encrypted records stored", "color": "blue", "gauge": False},
+            {"label": "Compliance Alignment", "value": "98.5%", "foot": "HIPAA-aligned security considerations", "color": "green", "gauge": True},
+            {"label": "Stateful Audit Trails", "value": total_evals, "foot": "Structured audit records stored", "color": "blue", "gauge": False},
             {"label": "Open Findings", "value": total_alerts, "foot": "Active unacknowledged alerts", "color": "amber" if total_alerts > 0 else "green", "gauge": False},
             {"label": "Audit Readiness", "value": "Optimal", "foot": "Full traceability verified", "color": "green", "gauge": True}
         ]
         files = [
             {"name": "Quarterly Hospital IoMT Compliance Summary", "date": datetime.datetime.now().strftime("%b %d, %Y · %I:%M %p"), "type": "Compliance", "records": total_evals},
-            {"name": "HIPAA Security Rule Continuous Alignment", "date": datetime.datetime.now().strftime("%b %d, %Y · %I:%M %p"), "type": "HIPAA", "records": total_patients},
+            {"name": "HIPAA Security Rule Alignment Review", "date": datetime.datetime.now().strftime("%b %d, %Y · %I:%M %p"), "type": "HIPAA Alignment", "records": total_patients},
             {"name": "Access Control & Role-Based Security Audit", "date": datetime.datetime.now().strftime("%b %d, %Y · %I:%M %p"), "type": "RBAC", "records": 5}
         ]
         table_rows = [
             {
                 "col1": f"Patient-Device Pair: {r['patient_name']} ↔ {r['device_id']}",
-                "col2": "HIPAA ePHI Encryption",
-                "col3": "AES-256 GCM + SHA-256",
-                "col4": "Verified Compliant",
+                "col2": "Access Control & Audit Trails",
+                "col3": "SHA-256 Hashed Tokens & Passwords",
+                "col4": "Policy Aligned",
                 "col5": "Continuous AI Verification Active",
                 "col6": "Pass"
             }
@@ -1049,7 +1049,7 @@ def get_dashboard_reports(
                 {
                     "col1": f"Device Policy: {r['device_id']}",
                     "col2": "IoMT Endpoint Authentication",
-                    "col3": "API Key Salted Hash",
+                    "col3": "API Key SHA-256 Hash",
                     "col4": "Verified Compliant",
                     "col5": "Active",
                     "col6": "Pass"

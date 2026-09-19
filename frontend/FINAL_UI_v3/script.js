@@ -262,7 +262,7 @@ function renderSmallCards(k) {
 
   const cardsData = [
     { title: 'Alerts (Active)', value: alerts.total, foot: `${alerts.critical} Critical · ${alerts.warning} Warnings`, color: alerts.critical > 0 ? 'red' : alerts.warning > 0 ? 'amber' : 'green', icon: 'alert' },
-    { title: 'Secure Transmissions', value: sec.secure_transmissions || '100%', foot: sec.encryption || 'AES-256 + HMAC verified', color: 'green', icon: 'shield' },
+    { title: 'Secure Transmissions', value: sec.secure_transmissions || '100%', foot: sec.encryption || 'Token Auth (SHA-256)', color: 'green', icon: 'shield' },
     { title: 'Active Locations', value: sec.active_locations || 1, foot: 'Hospital Departments', color: 'green', icon: 'map' },
     { title: 'AI Predictions', value: decisions.accept + decisions.monitor + decisions.isolate, foot: `${decisions.accept} Accept · ${decisions.monitor} Mon · ${decisions.isolate} Iso`, color: 'blue', icon: 'brain' },
     { title: 'Data Authenticity', value: sec.data_authenticity_score || '97.4%', foot: 'Model B Ensemble Score', color: 'blue', icon: 'check' }
@@ -737,6 +737,36 @@ async function acknowledgeAlert(alertId) {
   }
 }
 
+async function markAllAlertsRead() {
+  const token = localStorage.getItem('authToken');
+  if (!token) return;
+
+  const unack = dashboardAlerts.filter(a => !a.is_acknowledged);
+  if (unack.length === 0) {
+    showToast('No active unacknowledged alerts to mark as read.');
+    return;
+  }
+
+  try {
+    for (const a of unack) {
+      await fetch(`${API_BASE}/api/v1/dashboard/alerts/${a.id}/acknowledge`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+    }
+    showToast(`All ${unack.length} active alerts have been acknowledged.`);
+    loadDashboardData(true);
+  } catch (err) {
+    console.error('Error marking all alerts as read:', err);
+    showToast('Encountered an issue marking all alerts as read.');
+  }
+}
+
+const markReadBtn = document.querySelector('.mark-read');
+if (markReadBtn) {
+  markReadBtn.addEventListener('click', markAllAlertsRead);
+}
+
 // ---------- AI ANALYTICS (Phase 11: Dynamic Backend Data) ----------
 async function loadAnalyticsData(silent = false) {
   const token = localStorage.getItem('authToken');
@@ -833,6 +863,7 @@ async function loadReportsData(tabName = 'overview', silent = false) {
     if (!res.ok) return;
 
     const data = await res.json();
+    currentReportData = data;
 
     // 1. Render Report KPIs
     const rk = document.getElementById('reportKpis');
@@ -896,7 +927,7 @@ async function loadReportsData(tabName = 'overview', silent = false) {
                 <div class="report-date">${f.date} · ${f.records || 0} Records Verified</div>
               </div>
             </div>
-            <span class="pdf-tag" onclick="showToast('Exporting ${f.name}...')">Export PDF</span>
+            <span class="pdf-tag" onclick="exportCurrentReport('${f.name}')">Export PDF</span>
           </div>`;
         });
       }
@@ -907,6 +938,125 @@ async function loadReportsData(tabName = 'overview', silent = false) {
   } catch (err) {
     if (!silent) console.error('Error loading reports data:', err);
   }
+}
+
+// Global state for printable report export
+let currentReportData = null;
+
+function exportCurrentReport(customTitle = null) {
+  if (!currentReportData || !currentReportData.table) {
+    showToast('Loading report data for export...');
+    return;
+  }
+  
+  const reportType = (activeReportTab || 'overview').charAt(0).toUpperCase() + (activeReportTab || 'overview').slice(1);
+  const title = customTitle || `TrustGuard-IoMT ${reportType} Continuous Verification Report`;
+  const generatedAt = new Date().toLocaleString('en-US', {
+    month: 'short', day: 'numeric', year: 'numeric',
+    hour: 'numeric', minute: '2-digit', second: '2-digit', hour12: true
+  });
+  const user = localStorage.getItem('userName') || 'System Administrator';
+  const role = localStorage.getItem('userRole') || 'Administrator';
+  
+  const kpis = currentReportData.kpis || [];
+  const cols = currentReportData.table.columns || [];
+  const rows = currentReportData.table.rows || [];
+  
+  const kpiHtml = kpis.map(k => `
+    <div style="border:1px solid #d0d7de; border-radius:6px; padding:10px 14px; background:#f6f8fa; flex:1; min-width:160px;">
+      <div style="font-size:10.5px; color:#57606a; text-transform:uppercase; font-weight:600;">${k.label}</div>
+      <div style="font-size:20px; font-weight:700; color:#24292f; margin:4px 0;">${k.value}</div>
+      <div style="font-size:10.5px; color:#57606a;">${k.foot || ''}</div>
+    </div>
+  `).join('');
+  
+  const tableRowsHtml = rows.map(r => `
+    <tr>
+      <td style="padding:7px 10px; border-bottom:1px solid #d0d7de; font-weight:600;">${r.col1 || '—'}</td>
+      <td style="padding:7px 10px; border-bottom:1px solid #d0d7de;">${r.col2 || '—'}</td>
+      <td style="padding:7px 10px; border-bottom:1px solid #d0d7de;">${r.col3 || '—'}</td>
+      <td style="padding:7px 10px; border-bottom:1px solid #d0d7de;">${r.col4 || '—'}</td>
+      <td style="padding:7px 10px; border-bottom:1px solid #d0d7de;">${r.col5 || '—'}</td>
+      <td style="padding:7px 10px; border-bottom:1px solid #d0d7de; color:#57606a;">${r.col6 || '—'}</td>
+    </tr>
+  `).join('');
+
+  const printWindow = window.open('', '_blank');
+  if (!printWindow) {
+    showToast('Please allow popups to export the PDF report.');
+    return;
+  }
+  
+  printWindow.document.write(`
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <title>${title}</title>
+      <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #24292f; margin: 25px; line-height: 1.4; font-size: 11.5px; }
+        .header { display: flex; justify-content: space-between; border-bottom: 2px solid #0969da; padding-bottom: 10px; margin-bottom: 16px; }
+        .brand { font-size: 17px; font-weight: 700; color: #0969da; }
+        .sub { font-size: 11.5px; color: #57606a; }
+        .meta-grid { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 16px; }
+        .policy-box { background: #ddf4ff; border: 1px solid #54aeff; border-radius: 6px; padding: 8px 12px; margin-bottom: 16px; font-size: 11px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th { background: #f6f8fa; border-bottom: 2px solid #d0d7de; padding: 7px 10px; text-align: left; font-size: 10.5px; text-transform: uppercase; color: #57606a; }
+        .footer { margin-top: 25px; border-top: 1px solid #d0d7de; padding-top: 8px; font-size: 10px; color: #57606a; display: flex; justify-content: space-between; }
+        @media print {
+          @page { margin: 12mm; size: landscape; }
+          body { margin: 0; }
+        }
+      </style>
+    </head>
+    <body>
+      <div class="header">
+        <div>
+          <div class="brand">TrustGuard-IoMT — Medical IoT Continuous Trust Platform</div>
+          <div class="sub">An Intelligent AI-Driven Continuous Trust Verification for Medical IoT</div>
+          <div style="font-size: 13.5px; font-weight: 700; margin-top: 5px; color: #24292f;">${title}</div>
+        </div>
+        <div style="text-align: right;">
+          <div><strong>Generated:</strong> ${generatedAt}</div>
+          <div><strong>Operator:</strong> ${user} (${role})</div>
+          <div><strong>Telemetry Source:</strong> Dataset-Driven Simulation</div>
+        </div>
+      </div>
+      
+      <div class="policy-box">
+        <strong>Continuous Trust Policy:</strong> Final Trust Score = 0.45 &times; Device Trust (Model A) + 0.55 &times; Data Authenticity (Model B) &middot; Thresholds: Accept (&ge;80), Monitor (50&ndash;79), Isolate (&lt;50)
+      </div>
+
+      <div class="meta-grid">
+        ${kpiHtml}
+      </div>
+
+      <div style="margin-top:16px; font-weight:700; font-size:12px;">Verified Verification Records (${rows.length} total)</div>
+      <table>
+        <thead>
+          <tr>${cols.map(c => `<th>${c}</th>`).join('')}</tr>
+        </thead>
+        <tbody>
+          ${tableRowsHtml}
+        </tbody>
+      </table>
+
+      <div class="footer">
+        <div>TrustGuard-IoMT &copy; 2026 &middot; Academic Demonstration &amp; Implementation Integrity</div>
+        <div>SHA-256 Token-Authenticated Audit Log &middot; Page 1 of 1</div>
+      </div>
+
+      <script>
+        window.onload = function() {
+          setTimeout(function() {
+            window.print();
+          }, 300);
+        };
+      <\/script>
+    </body>
+    </html>
+  `);
+  printWindow.document.close();
+  showToast(`Exported ${title} to PDF.`);
 }
 
 // Bind Report Tabs
@@ -922,7 +1072,7 @@ document.querySelectorAll('#reportTabsContainer .report-tab').forEach(t => {
 const customRepBtn = document.getElementById('customReportBtn');
 if (customRepBtn) {
   customRepBtn.addEventListener('click', () => {
-    showToast(`Exporting full ${activeReportTab.toUpperCase()} compliance package (PDF)...`);
+    exportCurrentReport();
   });
 }
 
@@ -1097,7 +1247,7 @@ const settingsGroups = [
     {label:'Session Timeout', desc:'Automatically sign out after inactivity', select:'30 minutes'}
   ]},
   {title:'Data Security', rows:[
-    {label:'Encryption', desc:'Encrypt data at rest', select:'AES-256'},
+    {label:'Integrity Protection', desc:'API Key & device token hashing', select:'SHA-256'},
     {label:'Data Transmission', desc:'Encrypt data in transit', select:'TLS 1.3'},
     {label:'Audit Logging', desc:'Record all administrative actions', toggle:true}
   ]},
@@ -1407,7 +1557,7 @@ async function openAssignModal(preselectPatientId = null, preselectDeviceId = nu
   const dSel = document.getElementById('assignDeviceSelect');
   const confirmBtn = document.getElementById('confirmAssignBtn');
 
-  if (errEl) { errEl.textContent = ''; err.style.display = 'none'; }
+  if (errEl) { errEl.textContent = ''; errEl.style.display = 'none'; }
   if (confirmBtn) { confirmBtn.disabled = false; confirmBtn.textContent = 'Confirm Binding'; }
 
   pSel.innerHTML = '<option value="">Loading patients...</option>';
@@ -1674,7 +1824,7 @@ function updateDeviceProfilesSection() {
       <div class="info-item"><div class="lbl">Assigned Patient</div><div class="val">${dev.patient_name || 'Unassigned'}</div></div>
       <div class="info-item"><div class="lbl">Device Trust (Model A)</div><div class="val">${dev.device_trust_subscore}% (45% Wgt)</div></div>
       <div class="info-item"><div class="lbl">Data Authenticity (Model B)</div><div class="val">${dev.data_authenticity_subscore}% (55% Wgt)</div></div>
-      <div class="info-item"><div class="lbl">Data Transmission</div><div class="val">Encrypted (AES-256 + HMAC)</div></div>
+      <div class="info-item"><div class="lbl">Data Transmission</div><div class="val">Token-Authenticated (SHA-256)</div></div>
     `;
   }
 }
@@ -1781,11 +1931,10 @@ document.querySelectorAll('.modal-backdrop').forEach(mb => {
 
 async function loadUsers() {
     const token = localStorage.getItem('authToken');
+    const myEmail = (localStorage.getItem('userEmail') || '').toLowerCase();
+    const myRole = localStorage.getItem('userRole') || 'Administrator';
 
-    if (!token) {
-        console.error('No authentication token found.');
-        return;
-    }
+    if (!token) return;
 
     try {
         const response = await fetch(`${API_BASE}/auth/users`, {
@@ -1796,63 +1945,134 @@ async function loadUsers() {
             }
         });
 
-        if (!response.ok) {
-            console.error('Failed to load users:', response.status);
-            return;
-        }
+        if (!response.ok) return;
 
         const data = await response.json();
         const users = Array.isArray(data) ? data : (data.users || []);
 
         const utb = document.getElementById('usersTableBody');
+        const badge = document.getElementById('usersCountBadge');
+        if (badge) badge.textContent = `${users.length} Accounts Registered`;
 
-        if (!utb) {
-            console.error('usersTableBody not found.');
-            return;
-        }
+        if (!utb) return;
 
         utb.innerHTML = '';
 
-        users.forEach(u => {
-            const status = u.is_active ? 'Active' : 'Inactive';
-            const sc3 = status === 'Active' ? 'green' : 'gray';
+        if (users.length === 0) {
+            utb.innerHTML = `<tr><td colspan="6" style="text-align:center; color:var(--muted); padding:24px;">No registered users found.</td></tr>`;
+            return;
+        }
 
+        users.forEach(u => {
+            const isMe = (u.email || '').toLowerCase() === myEmail;
+            const status = u.is_active ? 'Active' : 'Suspended';
+            const sc3 = u.is_active ? 'green' : 'red';
             const initials = u.full_name
-                ? u.full_name
-                    .split(' ')
-                    .map(name => name[0])
-                    .join('')
-                    .substring(0, 2)
-                    .toUpperCase()
+                ? u.full_name.split(' ').map(name => name[0]).join('').substring(0, 2).toUpperCase()
                 : 'U';
+            
+            const dateStr = u.created_at ? new Date(u.created_at).toLocaleDateString('en-US', {month:'short', day:'numeric', year:'numeric'}) : '—';
+
+            let actionButtons = '';
+            if (myRole === 'Administrator') {
+                if (isMe) {
+                    actionButtons = `<span style="font-size:11.5px; color:var(--accent); font-weight:600;">(Current Admin)</span>`;
+                } else {
+                    const blockBtn = u.is_active
+                        ? `<button class="btn-action" onclick="blockUser('${u.email}')" style="color:var(--amber); border-color:rgba(255,176,32,0.3); font-size:11px;">Suspend</button>`
+                        : `<button class="btn-action" onclick="unblockUser('${u.email}')" style="color:var(--green); border-color:rgba(45,212,160,0.3); font-size:11px;">Restore</button>`;
+                    const delBtn = `<button class="btn-action" onclick="deleteUser('${u.email}')" style="color:var(--red); border-color:rgba(255,77,106,0.3); font-size:11px; margin-left:6px;">Delete</button>`;
+                    actionButtons = `${blockBtn}${delBtn}`;
+                }
+            } else {
+                actionButtons = `<span style="font-size:11px; color:var(--muted);">Read-only</span>`;
+            }
 
             utb.innerHTML += `
                 <tr>
                     <td>
                         <div class="user-cell">
                             <div class="user-avatar-sm">${initials}</div>
-                            <span style="font-weight:700;">${u.full_name}</span>
+                            <div>
+                                <div style="font-weight:700;">${u.full_name}</div>
+                                <div style="font-size:11px; color:var(--muted);">${u.department || 'Clinical / IT Operations'}</div>
+                            </div>
                         </div>
                     </td>
-                    <td>
-                        <span class="role-chip">${u.role}</span>
-                    </td>
-                    <td>—</td>
-                    <td>
-                        <span class="badge"
-                            style="background:var(--${sc3}-bg); color:var(--${sc3});">
-                            ● ${status}
-                        </span>
-                    </td>
-                    <td style="color:var(--muted);">
-                        ${u.created_at || '—'}
-                    </td>
+                    <td><span class="role-chip">${u.role}</span></td>
+                    <td style="font-family:var(--font-mono); font-size:12px;">${u.email}</td>
+                    <td><span class="badge" style="background:var(--${sc3}-bg); color:var(--${sc3}); font-weight:700;">● ${status}</span></td>
+                    <td style="color:var(--muted); font-size:12px;">${dateStr}</td>
+                    <td style="text-align:right;">${actionButtons}</td>
                 </tr>
             `;
         });
-
     } catch (error) {
         console.error('Error loading users:', error);
+    }
+}
+
+async function blockUser(email) {
+    const token = localStorage.getItem('authToken');
+    if (!token) return;
+    try {
+        const res = await fetch(`${API_BASE}/auth/block-user`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email })
+        });
+        const data = await res.json();
+        if (res.ok) {
+            showToast(`User account for ${email} has been suspended.`);
+            loadUsers();
+        } else {
+            showToast(data.detail || 'Could not suspend user.');
+        }
+    } catch (err) {
+        showToast('Network error modifying account.');
+    }
+}
+
+async function unblockUser(email) {
+    const token = localStorage.getItem('authToken');
+    if (!token) return;
+    try {
+        const res = await fetch(`${API_BASE}/auth/unblock-user`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email })
+        });
+        const data = await res.json();
+        if (res.ok) {
+            showToast(`User account for ${email} has been restored.`);
+            loadUsers();
+        } else {
+            showToast(data.detail || 'Could not restore user.');
+        }
+    } catch (err) {
+        showToast('Network error modifying account.');
+    }
+}
+
+async function deleteUser(email) {
+    if (!confirm(`Are you sure you want to permanently delete the account for ${email}?`)) return;
+    const token = localStorage.getItem('authToken');
+    if (!token) return;
+    try {
+        const res = await fetch(`${API_BASE}/auth/delete-user`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email })
+        });
+        const data = await res.json();
+        if (res.ok) {
+            showToast(`User account for ${email} has been deleted.`);
+            loadUsers();
+        } else {
+            showToast(data.detail || 'Could not delete user.');
+        }
+    } catch (err) {
+        showToast('Network error deleting account.');
     }
 }
 

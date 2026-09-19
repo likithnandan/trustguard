@@ -2,7 +2,7 @@
 TrustGuard-IoMT / Continuous Trust Verification for Medical IoT
 Doctor Portal REST API Router (/api/v1/doctor)
 
-Provides dynamic, verified patient monitoring streams for clinical use:
+Provides dynamic, verified patient monitoring streams for doctor-facing verification:
 - GET /api/v1/doctor/patients: Lists all admitted patients with their latest
   live vitals, continuous AI trust scores, decision status, and clinical reasons.
 - GET /api/v1/doctor/patients/{patient_id}: Detailed single patient monitoring view.

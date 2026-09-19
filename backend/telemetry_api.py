@@ -43,7 +43,7 @@ class TelemetryIngestRequest(BaseModel):
     vitals: VitalsPayload = Field(default_factory=VitalsPayload, description="Patient Clinical Vitals")
     device_features: Dict[str, Any] = Field(default_factory=dict, description="Operational & Device Telemetry (Model A Features)")
     network_features: Dict[str, Any] = Field(default_factory=dict, description="Network Flow & Security Metrics (Model B Features)")
-    payload_hash: Optional[str] = Field(default=None, description="HMAC or SHA-256 Digest for payload integrity")
+    payload_hash: Optional[str] = Field(default=None, description="SHA-256 Digest for payload integrity")
 
 
 # Categorical Label Encoding maps for Model A (matches Dataset 1 training distribution)

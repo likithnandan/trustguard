@@ -138,7 +138,7 @@ function renderPatientDetail(id){
   const initials = p.name ? p.name.replace(/^Dr\.?\s*/i, '').split(' ').map(w=>w[0]).slice(0,2).join('').toUpperCase() : 'PT';
 
   const bannerCopy = {
-    good: {title:'Data Verified', sub: p.reason || 'This device\u2019s data passed both encryption integrity checks and AI authenticity analysis. Safe to act on.', icon:'✓'},
+    good: {title:'Data Verified', sub: p.reason || 'This device\u2019s data passed both token authentication and AI authenticity analysis. Safe to act on.', icon:'✓'},
     warn: {title:'Verify Before Acting', sub: p.reason || 'Telemetry confidence reduced — potential operational drift or transmission latency.', icon:'!'},
     bad:  {title:'Caution — Do Not Act Without Verification', sub: p.reason || 'Critical anomaly or signature mismatch detected. Verify patient vitals manually before clinical action.', icon:'✕'}
   }[level];

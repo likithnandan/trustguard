@@ -326,7 +326,7 @@
       <!-- DEVICE PROFILES -->
       <section class="page" id="page-profiles">
         <div style="display:flex; justify-content:flex-end; margin-bottom:14px;">
-          <select class="device-select"><option>ECG Monitor - ICU 1 (ECG-ICU-001)</option><option>Pulse Oximeter - 12 (POX-12)</option><option>Infusion Pump - 07 (IP-07)</option></select>
+          <select class="device-select" id="profileDeviceSelect"><option>Loading devices...</option></select>
         </div>
         <div class="profile-grid">
           <div class="card">
@@ -363,8 +363,12 @@
       <!-- USER MANAGEMENT -->
       <section class="page" id="page-users">
         <div class="card">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
+            <div class="card-title">Registered System Users & Account Controls</div>
+            <span class="badge" style="background:var(--green-bg); color:var(--green);" id="usersCountBadge">Active Accounts</span>
+          </div>
           <table>
-            <thead><tr><th>User</th><th>Role</th><th>Department</th><th>Status</th><th>Last Active</th></tr></thead>
+            <thead><tr><th>User & Full Name</th><th>Role</th><th>Email / Identifier</th><th>Account Status</th><th>Created Date</th><th style="text-align:right;">Actions</th></tr></thead>
             <tbody id="usersTableBody"></tbody>
           </table>
         </div>
