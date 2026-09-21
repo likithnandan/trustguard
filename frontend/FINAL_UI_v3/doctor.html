@@ -88,6 +88,21 @@
   .patient-trust-value{ font-family:var(--font-mono); font-size:28px; font-weight:700; }
   .patient-trust-label{ font-size:11px; color:var(--muted); }
 
+  /* Multi-Device Badges */
+  .device-badges{ display:flex; flex-wrap:wrap; gap:8px; margin-top:8px; }
+  .device-badge{
+    display:inline-flex; align-items:center; gap:6px; background:var(--panel); border:1px solid var(--border);
+    padding:4px 10px; border-radius:8px; font-size:11.5px; font-family:var(--font-mono); color:var(--text);
+  }
+  .device-badge-dot{ width:6px; height:6px; border-radius:50%; background:var(--green); }
+
+  /* AI Trust Breakdown Card */
+  .trust-breakdown-grid{ display:grid; grid-template-columns:repeat(3,1fr); gap:16px; margin-bottom:20px; }
+  .trust-kpi-card{ background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:16px; position:relative; }
+  .trust-kpi-title{ font-size:11.5px; color:var(--muted); font-weight:600; text-transform:uppercase; letter-spacing:0.4px; }
+  .trust-kpi-val{ font-family:var(--font-mono); font-size:26px; font-weight:700; margin-top:6px; color:#fff; }
+  .trust-kpi-weight{ font-size:11px; color:var(--accent); margin-top:4px; font-weight:500; }
+
   /* Vitals grid */
   .vitals-grid{ display:grid; grid-template-columns:repeat(3,1fr); gap:16px; margin-bottom:20px; }
   .vital-card{ position:relative; }
@@ -97,13 +112,26 @@
   .vital-badge{ position:absolute; top:16px; right:16px; font-size:14px; }
   .vital-range{ font-size:11px; color:var(--muted); margin-top:6px; }
 
-  .ecg-card canvas, .ecg-card svg{ width:100%; height:70px; margin-top:8px; }
-
-  /* Trust breakdown for doctor - simplified language */
-  .why-row{ display:flex; justify-content:space-between; align-items:center; padding:10px 0; border-bottom:1px solid var(--border-soft); font-size:12.8px; }
+  /* Trust breakdown rows */
+  .why-row{ display:flex; justify-content:space-between; align-items:center; padding:12px 0; border-bottom:1px solid var(--border-soft); font-size:12.8px; }
   .why-row:last-child{ border-bottom:none; }
   .why-label{ color:var(--text); font-weight:600; }
   .why-tag{ font-size:11px; font-weight:700; padding:3px 10px; border-radius:20px; }
+
+  /* XAI Factors Grid */
+  .xai-grid{ display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-top:10px; }
+  .xai-column{ background:var(--panel-2); border:1px solid var(--border-soft); border-radius:10px; padding:14px; }
+  .xai-col-title{ font-size:12px; font-weight:700; color:#fff; margin-bottom:8px; display:flex; align-items:center; gap:6px; }
+  .xai-factor-item{ display:flex; justify-content:space-between; align-items:center; padding:6px 0; border-bottom:1px dashed var(--border-soft); font-size:11.8px; }
+  .xai-factor-item:last-child{ border-bottom:none; }
+  .xai-factor-name{ color:var(--text); font-family:var(--font-mono); }
+  .xai-factor-score{ color:var(--accent); font-family:var(--font-mono); font-weight:600; }
+
+  /* History Table */
+  .dp-history-table{ width:100%; border-collapse:collapse; margin-top:10px; font-size:12px; }
+  .dp-history-table th{ text-align:left; padding:8px 10px; color:var(--muted); font-weight:600; border-bottom:1px solid var(--border); font-size:11px; text-transform:uppercase; }
+  .dp-history-table td{ padding:9px 10px; border-bottom:1px solid var(--border-soft); color:var(--text); }
+  .dp-history-table tr:hover{ background:rgba(255,255,255,0.02); }
 </style>
 </head>
 <body>
@@ -139,7 +167,7 @@
     <div class="dp-topbar">
       <div>
         <h1>Patient Monitor</h1>
-        <p>Verified vitals for the selected patient, reaching you directly from the device</p>
+        <p>Continuous AI-verified telemetry integrity and authenticity monitoring</p>
       </div>
       <div class="topbar-right">
         <button class="icon-btn" id="backToAdminBtn" title="Switch to Admin Dashboard" style="display:none;">

@@ -31,7 +31,7 @@
         <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l8 4v6c0 5-3.5 8.5-8 10-4.5-1.5-8-5-8-10V6l8-4z"/></svg>
       </div>
       <div>
-        <div class="brand-name">TrustVerify AI</div>
+        <div class="brand-name">TrustGuard-IoMT</div>
         <div class="brand-tag">Continuous Trust for Medical IoT</div>
       </div>
     </div>
@@ -67,18 +67,29 @@
       </div>
       <div class="topbar-right">
         <div class="date-picker-wrap" style="position:relative;">
-          <div class="date-pill" id="dateRangeTrigger" style="cursor:pointer;">${icon('cal')} <span id="dateRangeLabel">May 10 – May 16, 2026</span></div>
+          <div class="date-pill" id="dateRangeTrigger" style="cursor:pointer;">${icon('cal')} <span id="dateRangeLabel">All Telemetry Data</span></div>
           <div id="dateRangeDropdown" class="date-dropdown">
+            <div style="font-size:11px; font-weight:700; color:var(--muted); margin-bottom:8px; text-transform:uppercase; letter-spacing:0.3px;">Presets</div>
             <div class="date-dropdown-presets">
               <button class="date-preset-btn" data-days="7">Last 7 Days</button>
-              <button class="date-preset-btn" data-days="10">10 Days Ago</button>
+              <button class="date-preset-btn" data-days="10">Last 10 Days</button>
               <button class="date-preset-btn" data-days="30">Last 30 Days</button>
+              <button class="date-preset-btn" data-days="all">All Time</button>
             </div>
             <div class="date-dropdown-custom">
-              <label>Custom date</label>
-              <input type="date" id="customDateInput" value="2026-05-16">
+              <div>
+                <label>Start Date</label>
+                <input type="date" id="customStartDateInput">
+              </div>
+              <div>
+                <label>End Date</label>
+                <input type="date" id="customEndDateInput">
+              </div>
             </div>
-            <button class="btn-primary" id="applyDateBtn" style="width:100%; justify-content:center; margin-top:10px;">Apply</button>
+            <div style="display:flex; gap:8px; margin-top:12px;">
+              <button class="btn-action" id="resetDateBtn" style="flex:1;">Reset</button>
+              <button class="btn-primary" id="applyDateBtn" style="flex:1; justify-content:center; padding:7px 12px; font-size:12px;">Apply Filter</button>
+            </div>
           </div>
         </div>
         <button class="icon-btn">${icon('bell')}</button>
@@ -100,15 +111,26 @@
               <canvas id="gaugeChart" width="220" height="130"></canvas>
               <div class="gauge-value">78.6%</div>
               <div class="gauge-tag">Good</div>
-              <div class="gauge-foot"><span class="up">↑ 8.4%</span> from last week</div>
+              <div class="gauge-foot"><span class="up">↑ 8.4%</span> Continuous Evaluation</div>
             </div>
           </div>
           <div class="card">
-            <div style="display:flex; justify-content:space-between; align-items:center;">
-              <div class="card-title">Trust Score Trend</div>
-              <div class="date-pill" style="padding:5px 10px;">Last 7 Days ▾</div>
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+              <div>
+                <div class="card-title">Trust Score Trend</div>
+                <div class="card-sub">Dual-model continuous trust trajectory</div>
+              </div>
+              <select id="trendPeriodSelect" class="form-control" style="width:auto; padding:4px 8px; font-size:11.5px; background:var(--panel-2); color:var(--text); border:1px solid var(--border); border-radius:8px;">
+                <option value="7d" selected>Last 7 Days</option>
+                <option value="14d">Last 14 Days</option>
+                <option value="30d">Last 30 Days</option>
+                <option value="all">All Time</option>
+              </select>
             </div>
-            <canvas id="trendChart" height="120"></canvas>
+            <div id="trendChartContainer" style="position:relative; height:120px;">
+              <canvas id="trendChart" height="120"></canvas>
+              <div id="trendEmptyMessage" style="display:none; position:absolute; inset:0; align-items:center; justify-content:center; color:var(--muted); font-size:12px; background:rgba(16,22,42,0.9); border-radius:8px;">No trust records found for this period</div>
+            </div>
           </div>
         </div>
 
@@ -205,7 +227,7 @@
         <h2 class="section-title">Recent Trust Events & XAI Explanations</h2>
         <div class="card">
           <table>
-            <thead><tr><th>Time</th><th>Device & Event</th><th>Impact</th><th>Trust Score</th><th>Clinical & AI Rationale</th></tr></thead>
+            <thead><tr><th>Time</th><th>Device & Event</th><th>Impact</th><th>Trust Score</th><th>Operational & AI Rationale</th></tr></thead>
             <tbody id="eventsTableBody"></tbody>
           </table>
         </div>
@@ -597,13 +619,13 @@
 <div class="modal-backdrop" id="patientDetailModal">
   <div class="modal-card-lg">
     <div class="modal-header-bar">
-      <h2 id="pDetailTitle">Patient Clinical & Trust Record</h2>
+      <h2 id="pDetailTitle">Patient Demographics & Trust Record</h2>
       <button class="modal-close-btn" id="closePatientDetailBtn">✕</button>
     </div>
     <div class="modal-form-body">
       <div class="details-kv-grid" id="pDetailGrid"></div>
       <div class="card" style="margin-top:14px; background:#0a0f1c; border-color:var(--border-soft);">
-        <div class="card-title" style="font-size:12px; margin-bottom:8px;">Live Telemetry & AI Verification Status</div>
+        <div class="card-title" style="font-size:12px; margin-bottom:8px;">Telemetry & Operational Trust Status</div>
         <div id="pDetailTelemetry"></div>
       </div>
     </div>

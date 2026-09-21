@@ -124,8 +124,26 @@ function renderPatientList(filter=''){
     });
 }
 
+// ---------- FETCH PATIENT TRUST HISTORY ----------
+async function fetchPatientTrustHistory(patientId){
+  const token = localStorage.getItem('authToken');
+  if(!token) return [];
+  try {
+    const res = await fetch(`${API_BASE}/api/v1/doctor/patients/${encodeURIComponent(patientId)}/history?limit=8`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    if(res.ok){
+      const data = await res.json();
+      return data.history || [];
+    }
+  } catch(err) {
+    console.error('Error fetching patient trust history:', err);
+  }
+  return [];
+}
+
 // ---------- RENDER PATIENT DETAIL ----------
-function renderPatientDetail(id){
+async function renderPatientDetail(id){
   const p = patients.find(x => x.id === id);
   const detailContainer = document.getElementById('patientDetail');
   if(!detailContainer) return;
@@ -137,12 +155,35 @@ function renderPatientDetail(id){
   const color = trustColorVar(level);
   const initials = p.name ? p.name.replace(/^Dr\.?\s*/i, '').split(' ').map(w=>w[0]).slice(0,2).join('').toUpperCase() : 'PT';
 
+  // Accurate operational verification banner copy (No clinical diagnosis claims)
   const bannerCopy = {
-    good: {title:'Data Verified', sub: p.reason || 'This device\u2019s data passed both token authentication and AI authenticity analysis. Safe to act on.', icon:'✓'},
-    warn: {title:'Verify Before Acting', sub: p.reason || 'Telemetry confidence reduced — potential operational drift or transmission latency.', icon:'!'},
-    bad:  {title:'Caution — Do Not Act Without Verification', sub: p.reason || 'Critical anomaly or signature mismatch detected. Verify patient vitals manually before clinical action.', icon:'✕'}
+    good: {title:'Telemetry Verified / Trusted Within System', sub: p.reason || 'Telemetry signature and operational parameters verified via continuous AI evaluation.', icon:'✓'},
+    warn: {title:'Verification / Monitoring Required', sub: p.reason || 'Telemetry confidence degraded — operational monitoring required.', icon:'!'},
+    bad:  {title:'Software Isolation Decision / Security Alert', sub: p.reason || 'Software isolation decision enforced due to low trust score. Review device operational integrity.', icon:'✕'}
   }[level];
 
+  // Assigned Devices Badges
+  const devicesList = p.assignedDevices && p.assignedDevices.length > 0 ? p.assignedDevices : [{
+    deviceId: p.deviceId || 'N/A',
+    deviceName: p.device || 'Assigned IoMT Device',
+    deviceType: 'IoMT Monitor',
+    deviceStatus: 'Active'
+  }];
+
+  const devicesBadgesHtml = devicesList.map(d => `
+    <div class="device-badge">
+      <span class="device-badge-dot"></span>
+      <strong>${d.deviceName}</strong> (${d.deviceId}) · <span style="color:var(--muted);">${d.deviceType}</span>
+    </div>
+  `).join('');
+
+  // Dual-Model AI Subscores
+  const devTrust = p.deviceTrust !== undefined ? p.deviceTrust : p.trust;
+  const dataAuth = p.dataAuthenticity !== undefined ? p.dataAuthenticity : p.trust;
+  const devLevel = trustLevel(devTrust);
+  const authLevel = trustLevel(dataAuth);
+
+  // Vitals Grid
   const v = p.vitals || {};
   const vitalDefs = [
     {key:'heartRate', name:'Heart Rate', value: v.heartRate !== undefined ? v.heartRate : '--', unit:'bpm', range:'Normal: 60-100 bpm'},
@@ -150,6 +191,7 @@ function renderPatientDetail(id){
     {key:'sysBP', name:'Blood Pressure', value: (v.sysBP !== undefined && v.diaBP !== undefined && v.sysBP !== '--') ? `${v.sysBP}/${v.diaBP}` : '--', unit:'mmHg', range:'Normal: <120/80 mmHg'},
     {key:'temp', name:'Temperature', value: v.temp !== undefined ? v.temp : '--', unit:'°C/°F', range:'Normal: 36.5-37.5°C / 98-99°F'},
     {key:'glucose', name:'Blood Glucose', value: v.glucose !== undefined ? v.glucose : '--', unit:'mg/dL', range:'Normal: 70-140 mg/dL'},
+    {key:'respRate', name:'Respiratory Rate', value: v.respRate !== undefined ? v.respRate : '--', unit:'breaths/min', range:'Normal: 12-20 breaths/min'}
   ];
 
   const vitalsHtml = vitalDefs.map(item => {
@@ -163,6 +205,26 @@ function renderPatientDetail(id){
     </div>`;
   }).join('');
 
+  // XAI Factors
+  const xaiObj = p.xai || {};
+  const topDev = xaiObj.top_device_factors || [];
+  const topAuth = xaiObj.top_authenticity_factors || [];
+
+  const devFactorsHtml = topDev.length > 0 ? topDev.map(f => `
+    <div class="xai-factor-item">
+      <span class="xai-factor-name">${f.feature}</span>
+      <span class="xai-factor-score">Imp: ${(f.importance * 100).toFixed(1)}%</span>
+    </div>
+  `).join('') : '<div style="color:var(--muted); font-size:11.5px; padding:6px 0;">No significant hardware anomalies detected.</div>';
+
+  const authFactorsHtml = topAuth.length > 0 ? topAuth.map(f => `
+    <div class="xai-factor-item">
+      <span class="xai-factor-name">${f.feature}</span>
+      <span class="xai-factor-score">Imp: ${(f.importance * 100).toFixed(1)}%</span>
+    </div>
+  `).join('') : '<div style="color:var(--muted); font-size:11.5px; padding:6px 0;">Network flow signatures verified within normal baseline.</div>';
+
+  // Render main container structure
   detailContainer.innerHTML = `
     <div class="verify-banner ${level}">
       <div class="verify-icon">${bannerCopy.icon}</div>
@@ -177,39 +239,135 @@ function renderPatientDetail(id){
         <div class="patient-avatar-lg">${initials}</div>
         <div>
           <div class="patient-title">${p.name}</div>
-          <div class="patient-sub">${p.id} · ${p.age} yrs · ${p.gender} · ${p.room}</div>
-          <div class="patient-sub">Source device: ${p.device} (${p.deviceId})</div>
+          <div class="patient-sub">${p.id} · ${p.age} yrs · ${p.gender} · ${p.room} · ${p.department}</div>
+          <div class="device-badges">${devicesBadgesHtml}</div>
         </div>
       </div>
       <div class="patient-trust-score">
         <div class="patient-trust-value" style="color:var(--${color});">${p.trust}%</div>
-        <div class="patient-trust-label">Continuous Trust Score</div>
+        <div class="patient-trust-label">Unified Trust Score (${p.decision || 'Accept'})</div>
       </div>
     </div>
 
+    <!-- AI TRUST VERIFICATION SECTION -->
+    <div class="trust-breakdown-grid">
+      <div class="trust-kpi-card">
+        <div class="trust-kpi-title">Model A — Device Trust</div>
+        <div class="trust-kpi-val" style="color:var(--${trustColorVar(devLevel)});">${devTrust}%</div>
+        <div class="trust-kpi-weight">45% Engine Weight (Operational Integrity)</div>
+      </div>
+      <div class="trust-kpi-card">
+        <div class="trust-kpi-title">Model B — Data Authenticity</div>
+        <div class="trust-kpi-val" style="color:var(--${trustColorVar(authLevel)});">${dataAuth}%</div>
+        <div class="trust-kpi-weight">55% Engine Weight (Security & Authenticity)</div>
+      </div>
+      <div class="trust-kpi-card">
+        <div class="trust-kpi-title">Continuous Verification Policy</div>
+        <div class="trust-kpi-val" style="color:var(--${color});">${p.decision || 'Accept'}</div>
+        <div class="trust-kpi-weight">Score = 0.45×Model_A + 0.55×Model_B</div>
+      </div>
+    </div>
+
+    <!-- LIVE CLINICAL VITALS -->
     <div class="vitals-grid">${vitalsHtml}</div>
 
-    <div class="card">
-      <div class="card-title" style="margin-bottom:6px;">Why this data is ${level === 'good' ? 'trusted' : 'flagged'}</div>
-      <div class="why-row">
-        <div class="why-label">Source device status</div>
-        <span class="why-tag" style="background:var(--${color}-bg); color:var(--${color});">${p.trust}% Trust Score (${p.decision || 'Accept'})</span>
+    <!-- EXPLAINABLE AI (XAI) ATTRIBUTION SECTION -->
+    <div class="card" style="margin-bottom:20px;">
+      <div class="card-title" style="margin-bottom:4px;">Why was this trust decision made?</div>
+      <div style="font-size:12px; color:var(--muted); margin-bottom:12px;">Top contributing operational and security factors from continuous AI model evaluation:</div>
+      
+      <div class="xai-grid">
+        <div class="xai-column">
+          <div class="xai-col-title">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="16" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></svg>
+            Model A — Top Device Hardware Factors
+          </div>
+          ${devFactorsHtml}
+        </div>
+        <div class="xai-column">
+          <div class="xai-col-title">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l8 4v6c0 5-3.5 8.5-8 10-4.5-1.5-8-5-8-10V6l8-4z"/></svg>
+            Model B — Top Data Authenticity Factors
+          </div>
+          ${authFactorsHtml}
+        </div>
       </div>
-      <div class="why-row">
-        <div class="why-label">Continuous AI Rationale</div>
-        <span style="font-size:12.5px; color:var(--muted); text-align:right; max-width:60%;">${p.reason || 'Verified telemetry parameters.'}</span>
+
+      <div style="margin-top:14px; padding-top:10px; border-top:1px solid var(--border-soft);">
+        <div class="why-row">
+          <div class="why-label">AI Telemetry Assessment Rationale</div>
+          <span style="font-size:12.5px; color:var(--muted); text-align:right; max-width:65%;">${p.reason || 'All telemetry parameters verified within operational baseline.'}</span>
+        </div>
+        <div class="why-row">
+          <div class="why-label">Recommended Verification Action</div>
+          <span style="font-size:12.5px; font-weight:700; color:var(--${color});">${p.recommendedAction || 'None — proceed with standard patient monitoring.'}</span>
+        </div>
+        ${p.evaluatedAt ? `
+        <div class="why-row">
+          <div class="why-label">Latest Evaluation Timestamp</div>
+          <span style="font-size:11.5px; color:var(--muted); font-family:var(--font-mono);">${new Date(p.evaluatedAt).toLocaleTimeString()} (${p.evaluatedAt.substring(0,10)})</span>
+        </div>` : ''}
       </div>
-      <div class="why-row">
-        <div class="why-label">Recommended Clinical Action</div>
-        <span style="font-size:12.5px; font-weight:700; color:var(--${color});">${p.recommendedAction || (level === 'good' ? 'None — continue normal monitoring' : level === 'warn' ? 'Cross-check with manual reading' : 'Escalate to biomedical engineering immediately')}</span>
+    </div>
+
+    <!-- CONTINUOUS TRUST EVALUATION HISTORY -->
+    <div class="card" id="patientHistoryCard">
+      <div class="card-title" style="margin-bottom:4px;">Continuous Trust Evaluation History</div>
+      <div style="font-size:12px; color:var(--muted); margin-bottom:10px;">Recent audit trail of AI trust evaluations for this patient:</div>
+      <div id="historyTableContainer" style="overflow-x:auto;">
+        <div style="padding:14px; color:var(--muted); font-size:12px; text-align:center;">Loading evaluation history...</div>
       </div>
-      ${p.evaluatedAt ? `
-      <div class="why-row">
-        <div class="why-label">Last Evaluation Event</div>
-        <span style="font-size:11.5px; color:var(--muted); font-family:var(--font-mono);">${new Date(p.evaluatedAt).toLocaleTimeString()} (${p.evaluatedAt.substring(0,10)})</span>
-      </div>` : ''}
     </div>
   `;
+
+  // Fetch and populate recent trust history asynchronously
+  fetchPatientTrustHistory(id).then(history => {
+    const histContainer = document.getElementById('historyTableContainer');
+    if(!histContainer) return;
+    if(!history || history.length === 0){
+      histContainer.innerHTML = '<div style="padding:14px; color:var(--muted); font-size:12px; text-align:center;">No historical trust evaluations available for this patient.</div>';
+      return;
+    }
+
+    const rowsHtml = history.map(h => {
+      const hScore = h.trustScore !== null ? `${h.trustScore}%` : '--';
+      const hDev = h.deviceTrust !== null ? `${h.deviceTrust}%` : '--';
+      const hAuth = h.dataAuthenticity !== null ? `${h.dataAuthenticity}%` : '--';
+      const hTime = h.timestamp ? new Date(h.timestamp).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit', second:'2-digit'}) : 'Recent';
+      const hLevel = trustLevel(h.trustScore || 100);
+      const hCol = trustColorVar(hLevel);
+      return `
+        <tr>
+          <td style="font-family:var(--font-mono); color:var(--muted);">${hTime}</td>
+          <td><strong>${h.deviceName || h.deviceId}</strong></td>
+          <td style="font-family:var(--font-mono);">${hDev}</td>
+          <td style="font-family:var(--font-mono);">${hAuth}</td>
+          <td style="font-family:var(--font-mono); font-weight:700; color:var(--${hCol});">${hScore}</td>
+          <td><span class="why-tag" style="background:var(--${hCol}-bg); color:var(--${hCol});">${h.decision}</span></td>
+          <td style="color:var(--muted); font-size:11.5px; max-width:280px; text-overflow:ellipsis; overflow:hidden; white-space:nowrap;">${h.clinicalReason || 'Normal verification'}</td>
+        </tr>
+      `;
+    }).join('');
+
+    histContainer.innerHTML = `
+      <table class="dp-history-table">
+        <thead>
+          <tr>
+            <th>Time</th>
+            <th>Device</th>
+            <th>Model A (45%)</th>
+            <th>Model B (55%)</th>
+            <th>Unified Trust</th>
+            <th>Decision</th>
+            <th>Assessment Rationale</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${rowsHtml}
+        </tbody>
+      </table>
+    `;
+  });
 }
 
 document.getElementById('patientSearch').addEventListener('input', (e)=> renderPatientList(e.target.value));
@@ -217,4 +375,5 @@ document.getElementById('patientSearch').addEventListener('input', (e)=> renderP
 // Initial load and continuous dynamic polling every 4 seconds
 loadDoctorPatients();
 setInterval(()=> loadDoctorPatients(true), 4000);
+
 

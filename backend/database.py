@@ -393,10 +393,28 @@ def unassign_device(device_id: str) -> None:
     conn.close()
 
 
+def unassign_device_from_patient(patient_id: str, device_id: str) -> bool:
+    now = datetime.datetime.now(timezone.utc).isoformat()
+    conn = get_db()
+    cursor = conn.execute(
+        "UPDATE patient_device_assignments SET is_active = 0, unassigned_at = ? WHERE patient_id = ? AND device_id = ? AND is_active = 1",
+        (now, patient_id, device_id)
+    )
+    conn.commit()
+    affected = cursor.rowcount > 0
+    conn.close()
+    return affected
+
+
 def get_active_assignment_for_device(device_id: str) -> Optional[Dict[str, Any]]:
     conn = get_db()
     row = conn.execute(
-        "SELECT * FROM patient_device_assignments WHERE device_id = ? AND is_active = 1",
+        """
+        SELECT a.*, p.full_name as patient_name, p.room as patient_room, p.department as patient_department
+        FROM patient_device_assignments a
+        JOIN patients p ON a.patient_id = p.id
+        WHERE a.device_id = ? AND a.is_active = 1
+        """,
         (device_id,)
     ).fetchone()
     conn.close()
@@ -404,6 +422,7 @@ def get_active_assignment_for_device(device_id: str) -> Optional[Dict[str, Any]]
 
 
 def get_active_assignment_for_patient(patient_id: str) -> Optional[Dict[str, Any]]:
+    """Returns the primary (first active) device assigned to the patient for backward compatibility."""
     conn = get_db()
     row = conn.execute(
         """
@@ -411,11 +430,46 @@ def get_active_assignment_for_patient(patient_id: str) -> Optional[Dict[str, Any
         FROM patient_device_assignments a
         JOIN devices d ON a.device_id = d.device_id
         WHERE a.patient_id = ? AND a.is_active = 1
+        ORDER BY a.assigned_at DESC
         """,
         (patient_id,)
     ).fetchone()
     conn.close()
     return dict(row) if row else None
+
+
+def get_active_assignments_for_patient(patient_id: str) -> List[Dict[str, Any]]:
+    """Returns all active IoMT devices currently assigned to this patient (1:many relationship)."""
+    conn = get_db()
+    rows = conn.execute(
+        """
+        SELECT a.*, d.device_name, d.device_type, d.status as device_status, d.location, d.department as device_department
+        FROM patient_device_assignments a
+        JOIN devices d ON a.device_id = d.device_id
+        WHERE a.patient_id = ? AND a.is_active = 1
+        ORDER BY a.assigned_at ASC
+        """,
+        (patient_id,)
+    ).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+def get_all_assignments_for_patient(patient_id: str) -> List[Dict[str, Any]]:
+    """Returns all IoMT device assignments for a patient, both active and inactive."""
+    conn = get_db()
+    rows = conn.execute(
+        """
+        SELECT a.*, d.device_name, d.device_type, d.status as device_status, d.location, d.department as device_department
+        FROM patient_device_assignments a
+        JOIN devices d ON a.device_id = d.device_id
+        WHERE a.patient_id = ?
+        ORDER BY a.assigned_at ASC
+        """,
+        (patient_id,)
+    ).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
 
 
 # ============================================================
@@ -572,6 +626,7 @@ def get_latest_patient_vitals_and_trust(doctor_id: Optional[int] = None) -> List
             e.flagged_vital,
             e.clinical_reason,
             e.recommended_action,
+            e.xai_explanation_json,
             e.timestamp as evaluated_at
         FROM patients p
         LEFT JOIN patient_device_assignments a ON p.id = a.patient_id AND a.is_active = 1
@@ -606,6 +661,39 @@ def get_latest_patient_vitals_and_trust(doctor_id: Optional[int] = None) -> List
     return [dict(r) for r in rows]
 
 
+def get_patient_trust_history(patient_id: str, limit: int = 20) -> List[Dict[str, Any]]:
+    """
+    Retrieves chronological trust evaluation history for a specific patient.
+    """
+    conn = get_db()
+    rows = conn.execute(
+        """
+        SELECT 
+            e.id as evaluation_id,
+            e.timestamp,
+            e.final_trust_score,
+            e.decision,
+            e.device_trust_subscore,
+            e.data_authenticity_subscore,
+            e.flagged_vital,
+            e.clinical_reason,
+            e.recommended_action,
+            e.device_id,
+            d.device_name,
+            d.device_type
+        FROM trust_evaluations e
+        LEFT JOIN devices d ON e.device_id = d.device_id
+        WHERE e.patient_id = ?
+        ORDER BY e.timestamp DESC
+        LIMIT ?
+        """,
+        (patient_id, limit)
+    ).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+
 # ============================================================
 # Security Alerts Data Access Functions
 # ============================================================
@@ -615,9 +703,10 @@ def create_security_alert(
     alert_type: str,
     message: str,
     patient_id: Optional[str] = None,
-    trust_evaluation_id: Optional[int] = None
+    trust_evaluation_id: Optional[int] = None,
+    timestamp: Optional[str] = None
 ) -> Dict[str, Any]:
-    now = datetime.datetime.now(timezone.utc).isoformat()
+    now = timestamp or datetime.datetime.now(timezone.utc).isoformat()
     conn = get_db()
     cursor = conn.execute(
         """
@@ -665,6 +754,19 @@ def acknowledge_alert(alert_id: int, user_id: int) -> bool:
     updated = cursor.rowcount > 0
     conn.close()
     return updated
+
+
+def acknowledge_all_alerts(user_id: int) -> int:
+    now = datetime.datetime.now(timezone.utc).isoformat()
+    conn = get_db()
+    cursor = conn.execute(
+        "UPDATE security_alerts SET is_acknowledged = 1, acknowledged_by = ?, acknowledged_at = ? WHERE is_acknowledged = 0",
+        (user_id, now)
+    )
+    conn.commit()
+    count = cursor.rowcount
+    conn.close()
+    return count
 
 
 # Automatically initialize tables upon module import

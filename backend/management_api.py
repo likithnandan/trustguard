@@ -126,6 +126,7 @@ class DeviceUpdateRequest(BaseModel):
 @router.get("/patients", summary="List all patients")
 def list_patients(
     department: Optional[str] = Query(None, description="Filter by clinical department"),
+    status_filter: Optional[str] = Query(None, description="Filter by patient status"),
     doctor_id: Optional[int] = Query(None, description="Filter by assigned doctor ID"),
     user: Dict[str, Any] = Depends(get_current_authenticated_user)
 ):
@@ -134,22 +135,40 @@ def list_patients(
     If caller is a Doctor, doctor_id filtering can be applied automatically or explicitly.
     Includes active device assignments.
     """
+    # Ensure FastAPI Query objects are plain values when called directly (e.g., from tests)
+    if not isinstance(department, (str, type(None))):
+        department = None
+    if not isinstance(doctor_id, (int, type(None))):
+        doctor_id = None
     patients = database.get_all_patients(department=department, doctor_id=doctor_id)
     
-    # Enrich with active device assignments
+    # Enrich with active device assignments (1:many support)
     enriched = []
     for p in patients:
-        assignment = database.get_active_assignment_for_patient(p["id"])
+        assignments = database.get_active_assignments_for_patient(p["id"])
+        primary = assignments[0] if assignments else None
         enriched.append({
             **p,
+            "assigned_devices": [
+                {
+                    "device_id": a["device_id"],
+                    "device_name": a["device_name"],
+                    "device_type": a["device_type"],
+                    "device_status": a["device_status"],
+                    "location": a["location"],
+                    "department": a.get("device_department") or a.get("location"),
+                    "assigned_at": a["assigned_at"]
+                }
+                for a in assignments
+            ],
             "assigned_device": {
-                "device_id": assignment["device_id"],
-                "device_name": assignment["device_name"],
-                "device_type": assignment["device_type"],
-                "device_status": assignment["device_status"],
-                "location": assignment["location"],
-                "assigned_at": assignment["assigned_at"]
-            } if assignment else None
+                "device_id": primary["device_id"],
+                "device_name": primary["device_name"],
+                "device_type": primary["device_type"],
+                "device_status": primary["device_status"],
+                "location": primary["location"],
+                "assigned_at": primary["assigned_at"]
+            } if primary else None
         })
 
     return {
@@ -163,7 +182,7 @@ def get_patient(
     patient_id: str,
     user: Dict[str, Any] = Depends(get_current_authenticated_user)
 ):
-    """Retrieves detailed record for a specific patient by ID."""
+    """Retrieves detailed record for a specific patient by ID with all assigned IoMT devices."""
     clean_id = patient_id.strip().upper()
     patient = database.get_patient_by_id(clean_id)
     if not patient:
@@ -172,17 +191,30 @@ def get_patient(
             detail=f"Patient with ID '{clean_id}' was not found."
         )
     
-    assignment = database.get_active_assignment_for_patient(clean_id)
+    assignments = database.get_active_assignments_for_patient(clean_id)
+    primary = assignments[0] if assignments else None
     return {
         **patient,
+        "assigned_devices": [
+            {
+                "device_id": a["device_id"],
+                "device_name": a["device_name"],
+                "device_type": a["device_type"],
+                "device_status": a["device_status"],
+                "location": a["location"],
+                "department": a.get("device_department") or a.get("location"),
+                "assigned_at": a["assigned_at"]
+            }
+            for a in assignments
+        ],
         "assigned_device": {
-            "device_id": assignment["device_id"],
-            "device_name": assignment["device_name"],
-            "device_type": assignment["device_type"],
-            "device_status": assignment["device_status"],
-            "location": assignment["location"],
-            "assigned_at": assignment["assigned_at"]
-        } if assignment else None
+            "device_id": primary["device_id"],
+            "device_name": primary["device_name"],
+            "device_type": primary["device_type"],
+            "device_status": primary["device_status"],
+            "location": primary["location"],
+            "assigned_at": primary["assigned_at"]
+        } if primary else None
     }
 
 
@@ -427,3 +459,61 @@ def assign_device_to_patient_endpoint(
             "is_active": assignment["is_active"]
         }
     }
+
+
+@router.post(
+    "/devices/{device_id}/assign-patient/{patient_id}",
+    summary="Assign an IoMT device to a patient (device-first route)"
+)
+def assign_patient_to_device_endpoint(
+    device_id: str,
+    patient_id: str,
+    user: Dict[str, Any] = Depends(require_admin_or_technician)
+):
+    """Alias for device-to-patient assignment initiated from Devices management view."""
+    return assign_device_to_patient_endpoint(patient_id=patient_id, device_id=device_id, user=user)
+
+
+@router.post(
+    "/patients/{patient_id}/unassign-device/{device_id}",
+    summary="Unassign a specific device from a patient"
+)
+def unassign_device_endpoint(
+    patient_id: str,
+    device_id: str,
+    user: Dict[str, Any] = Depends(require_admin_or_technician)
+):
+    """Unassigns a specific IoMT device from a patient record."""
+    clean_patient_id = patient_id.strip().upper()
+    clean_device_id = device_id.strip().upper()
+    
+    unassigned = database.unassign_device_from_patient(clean_patient_id, clean_device_id)
+    if not unassigned:
+        # If there was no active assignment, consider it already unassigned.
+        # Return a success response to keep the operation idempotent.
+        return {
+            "message": f"Device '{clean_device_id}' was already unassigned from patient '{clean_patient_id}'.",
+            "status": "success"
+        }
+    return {
+        "message": f"Device '{clean_device_id}' unassigned from patient '{clean_patient_id}'.",
+        "status": "success"
+    }
+
+
+@router.post(
+    "/devices/{device_id}/unassign",
+    summary="Unassign an IoMT device from any current patient"
+)
+def unassign_device_only_endpoint(
+    device_id: str,
+    user: Dict[str, Any] = Depends(require_admin_or_technician)
+):
+    """Unassigns the device from its current active patient."""
+    clean_device_id = device_id.strip().upper()
+    database.unassign_device(clean_device_id)
+    return {
+        "message": f"Device '{clean_device_id}' unassigned from all active patient bindings.",
+        "status": "success"
+    }
+

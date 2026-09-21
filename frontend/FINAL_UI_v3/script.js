@@ -41,6 +41,19 @@ let dashboardAlerts = [];
 let activeAlertCategory = 'All';
 let dashboardTrend = null;
 
+// Global Date & Period Filter State
+let activeStartDate = null;
+let activeEndDate = null;
+let activeTrendPeriod = '7d';
+
+function getDateQueryString(leadingChar = '?') {
+  const params = [];
+  if (activeStartDate) params.push(`start_date=${encodeURIComponent(activeStartDate)}`);
+  if (activeEndDate) params.push(`end_date=${encodeURIComponent(activeEndDate)}`);
+  if (params.length === 0) return '';
+  return `${leadingChar}${params.join('&')}`;
+}
+
 const colorMap = {
   red: ['var(--red-bg)', 'var(--red)'],
   amber: ['var(--amber-bg)', 'var(--amber)'],
@@ -153,12 +166,15 @@ async function loadDashboardData(silent = false) {
     'Content-Type': 'application/json'
   };
 
+  const dQuery = getDateQueryString('?');
+  const tQuery = `?period=${encodeURIComponent(activeTrendPeriod)}${activeStartDate ? '&start_date=' + encodeURIComponent(activeStartDate) : ''}${activeEndDate ? '&end_date=' + encodeURIComponent(activeEndDate) : ''}`;
+
   try {
     const [summaryRes, devicesRes, trendRes, alertsRes] = await Promise.all([
-      fetch(`${API_BASE}/api/v1/dashboard/summary`, { headers: reqHeaders }),
-      fetch(`${API_BASE}/api/v1/dashboard/devices`, { headers: reqHeaders }),
-      fetch(`${API_BASE}/api/v1/dashboard/trust-trend`, { headers: reqHeaders }),
-      fetch(`${API_BASE}/api/v1/dashboard/alerts`, { headers: reqHeaders })
+      fetch(`${API_BASE}/api/v1/dashboard/summary${dQuery}`, { headers: reqHeaders }),
+      fetch(`${API_BASE}/api/v1/dashboard/devices${dQuery}`, { headers: reqHeaders }),
+      fetch(`${API_BASE}/api/v1/dashboard/trust-trend${tQuery}`, { headers: reqHeaders }),
+      fetch(`${API_BASE}/api/v1/dashboard/alerts${dQuery}`, { headers: reqHeaders })
     ]);
 
     if (summaryRes.status === 401 || devicesRes.status === 401) {
@@ -180,6 +196,7 @@ async function loadDashboardData(silent = false) {
       renderDeviceTabs(dData.tabs || []);
       renderDevicesTable();
       renderTrustEngineDetails();
+      updateDeviceProfilesSection();
     }
 
     if (trendRes.ok) {
@@ -410,23 +427,29 @@ function renderPatientsTable() {
     const pInitials = (p.full_name || 'PT').split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase();
     const statusClass = p.status === 'Critical' ? 'red' : p.status === 'Discharged' ? 'gray' : 'green';
     
-    // Find device trust info if assigned
-    const assigned = p.assigned_device;
-    let devDisplay = `<span style="color:var(--muted); font-size:12px;">Unassigned</span>`;
+    // Find device trust info if assigned (support 1:many devices per patient)
+    const devicesList = (p.assigned_devices && p.assigned_devices.length > 0)
+      ? p.assigned_devices
+      : (p.assigned_device ? [p.assigned_device] : []);
+
+    let devDisplay = `<span style="color:var(--muted); font-size:12px; font-style:italic;">Unassigned</span>`;
     let trustDisplay = `<span style="color:var(--muted); font-size:12px;">—</span>`;
 
-    if (assigned) {
-      const dMatch = dashboardDevices.find(d => d.id === assigned.device_id);
-      const score = dMatch ? dMatch.score : 90;
-      const decision = dMatch ? dMatch.decision : 'Accept';
-      const c = trustDecisionColor(score);
+    if (devicesList.length > 0) {
+      devDisplay = `<div style="display:flex; flex-direction:column; gap:4px;">` + devicesList.map(dev => {
+        return `<div class="device-chip">
+          <span class="dev-name">${dev.device_name || dev.device_id}</span>
+          <span class="dev-id">${dev.device_id} · ${dev.device_type}</span>
+        </div>`;
+      }).join('') + `</div>`;
 
-      devDisplay = `<div style="font-weight:700; font-size:12.5px; color:#fff;">${assigned.device_name || assigned.device_id}</div>
-                    <div style="font-size:11px; color:var(--muted);">${assigned.device_id} · ${assigned.device_type}</div>`;
-      
-      trustDisplay = `<div style="display:flex; align-items:center; gap:8px;">
-        <span class="badge" style="background:var(--${c}-bg); color:var(--${c}); font-weight:700;">● ${score}% (${decision})</span>
-      </div>`;
+      trustDisplay = `<div style="display:flex; flex-direction:column; gap:4px;">` + devicesList.map(dev => {
+        const dMatch = dashboardDevices.find(d => d.id === dev.device_id);
+        const score = dMatch ? dMatch.score : 90;
+        const decision = dMatch ? dMatch.decision : (score >= 80 ? 'Accept' : score >= 50 ? 'Monitor' : 'Isolate');
+        const c = trustDecisionColor(score);
+        return `<span class="badge" style="background:var(--${c}-bg); color:var(--${c}); font-weight:700;">● ${score}% (${decision})</span>`;
+      }).join('') + `</div>`;
     }
 
     tbody.innerHTML += `<tr>
@@ -652,11 +675,21 @@ function renderTrustEngineDetails() {
 // ---------- RENDER TREND CHARTS ----------
 function renderTrendCharts(t) {
   if (!t) return;
+  const emptyEl = document.getElementById('trendEmptyMessage');
+  const hasData = t.scores && t.scores.length > 0 && !t.is_empty;
 
-  if (trendChartInstance && t.labels && t.scores) {
-    trendChartInstance.data.labels = t.labels;
-    trendChartInstance.data.datasets[0].data = t.scores;
-    trendChartInstance.update();
+  if (trendChartInstance) {
+    if (hasData) {
+      if (emptyEl) emptyEl.style.display = 'none';
+      trendChartInstance.data.labels = t.labels || [];
+      trendChartInstance.data.datasets[0].data = t.scores || [];
+      trendChartInstance.update();
+    } else {
+      if (emptyEl) emptyEl.style.display = 'flex';
+      trendChartInstance.data.labels = [];
+      trendChartInstance.data.datasets[0].data = [];
+      trendChartInstance.update();
+    }
   }
 
   if (historyChartInstance && t.history_labels && t.history_scores && !selectedTrustDeviceId) {
@@ -741,21 +774,18 @@ async function markAllAlertsRead() {
   const token = localStorage.getItem('authToken');
   if (!token) return;
 
-  const unack = dashboardAlerts.filter(a => !a.is_acknowledged);
-  if (unack.length === 0) {
-    showToast('No active unacknowledged alerts to mark as read.');
-    return;
-  }
-
   try {
-    for (const a of unack) {
-      await fetch(`${API_BASE}/api/v1/dashboard/alerts/${a.id}/acknowledge`, {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
+    const res = await fetch(`${API_BASE}/api/v1/dashboard/alerts/acknowledge-all`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    if (res.ok) {
+      const data = await res.json();
+      showToast(`All ${data.count || ''} active security alerts have been marked as read.`);
+      loadDashboardData(true);
+    } else {
+      showToast('Could not acknowledge all alerts.');
     }
-    showToast(`All ${unack.length} active alerts have been acknowledged.`);
-    loadDashboardData(true);
   } catch (err) {
     console.error('Error marking all alerts as read:', err);
     showToast('Encountered an issue marking all alerts as read.');
@@ -773,9 +803,10 @@ async function loadAnalyticsData(silent = false) {
   if (!token) return;
 
   const reqHeaders = { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' };
+  const dQuery = getDateQueryString('?');
 
   try {
-    const res = await fetch(`${API_BASE}/api/v1/dashboard/analytics`, { headers: reqHeaders });
+    const res = await fetch(`${API_BASE}/api/v1/dashboard/analytics${dQuery}`, { headers: reqHeaders });
     if (!res.ok) return;
 
     const data = await res.json();
@@ -850,16 +881,32 @@ async function loadAnalyticsData(silent = false) {
 
 // ---------- REPORTS (Phase 11: Dynamic Multi-tab Reports) ----------
 let activeReportTab = 'overview';
+let currentReportData = null;
+
+const reportSectionTitles = {
+  overview: 'Overview — IoMT Fleet Continuous Verification Records',
+  device: 'Device Reports — Hardware Fleet Inventory & Trust Status',
+  maintenance: 'Maintenance Advisor — Simulation-Based Hardware Health & Calibration Log',
+  security: 'Security Reports — Data Authenticity & Threat Interception Records',
+  compliance: 'Security Reports — HIPAA-Aligned Security Review Records'
+};
 
 async function loadReportsData(tabName = 'overview', silent = false) {
   const token = localStorage.getItem('authToken');
   if (!token) return;
 
-  activeReportTab = tabName.toLowerCase();
+  activeReportTab = (tabName || 'overview').toLowerCase();
   const reqHeaders = { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' };
+  const dQuery = getDateQueryString('&');
+
+  // Update section title immediately
+  const titleEl = document.getElementById('reportSectionTitle');
+  if (titleEl && reportSectionTitles[activeReportTab]) {
+    titleEl.textContent = reportSectionTitles[activeReportTab];
+  }
 
   try {
-    const res = await fetch(`${API_BASE}/api/v1/dashboard/reports?type=${encodeURIComponent(activeReportTab)}`, { headers: reqHeaders });
+    const res = await fetch(`${API_BASE}/api/v1/dashboard/reports?type=${encodeURIComponent(activeReportTab)}${dQuery}`, { headers: reqHeaders });
     if (!res.ok) return;
 
     const data = await res.json();
@@ -927,7 +974,7 @@ async function loadReportsData(tabName = 'overview', silent = false) {
                 <div class="report-date">${f.date} · ${f.records || 0} Records Verified</div>
               </div>
             </div>
-            <span class="pdf-tag" onclick="exportCurrentReport('${f.name}')">Export PDF</span>
+            <span class="pdf-tag" style="cursor:pointer;" onclick="exportCurrentReport('${f.name}')">Export PDF</span>
           </div>`;
         });
       }
@@ -940,17 +987,14 @@ async function loadReportsData(tabName = 'overview', silent = false) {
   }
 }
 
-// Global state for printable report export
-let currentReportData = null;
-
 function exportCurrentReport(customTitle = null) {
   if (!currentReportData || !currentReportData.table) {
     showToast('Loading report data for export...');
     return;
   }
   
-  const reportType = (activeReportTab || 'overview').charAt(0).toUpperCase() + (activeReportTab || 'overview').slice(1);
-  const title = customTitle || `TrustGuard-IoMT ${reportType} Continuous Verification Report`;
+  const reportTypeName = (activeReportTab || 'overview').charAt(0).toUpperCase() + (activeReportTab || 'overview').slice(1);
+  const title = customTitle || `TrustGuard-IoMT ${reportTypeName} Continuous Verification Report`;
   const generatedAt = new Date().toLocaleString('en-US', {
     month: 'short', day: 'numeric', year: 'numeric',
     hour: 'numeric', minute: '2-digit', second: '2-digit', hour12: true
@@ -993,6 +1037,7 @@ function exportCurrentReport(customTitle = null) {
     <head>
       <title>${title}</title>
       <style>
+        * { box-sizing: border-box; }
         body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #24292f; margin: 25px; line-height: 1.4; font-size: 11.5px; }
         .header { display: flex; justify-content: space-between; border-bottom: 2px solid #0969da; padding-bottom: 10px; margin-bottom: 16px; }
         .brand { font-size: 17px; font-weight: 700; color: #0969da; }
@@ -1003,8 +1048,9 @@ function exportCurrentReport(customTitle = null) {
         th { background: #f6f8fa; border-bottom: 2px solid #d0d7de; padding: 7px 10px; text-align: left; font-size: 10.5px; text-transform: uppercase; color: #57606a; }
         .footer { margin-top: 25px; border-top: 1px solid #d0d7de; padding-top: 8px; font-size: 10px; color: #57606a; display: flex; justify-content: space-between; }
         @media print {
-          @page { margin: 12mm; size: landscape; }
+          @page { margin: 10mm 12mm; size: landscape; }
           body { margin: 0; }
+          * { cursor: default !important; }
         }
       </style>
     </head>
@@ -1018,12 +1064,12 @@ function exportCurrentReport(customTitle = null) {
         <div style="text-align: right;">
           <div><strong>Generated:</strong> ${generatedAt}</div>
           <div><strong>Operator:</strong> ${user} (${role})</div>
-          <div><strong>Telemetry Source:</strong> Dataset-Driven Simulation</div>
+          <div><strong>Report Scope:</strong> ${reportTypeName} Verification</div>
         </div>
       </div>
       
       <div class="policy-box">
-        <strong>Continuous Trust Policy:</strong> Final Trust Score = 0.45 &times; Device Trust (Model A) + 0.55 &times; Data Authenticity (Model B) &middot; Thresholds: Accept (&ge;80), Monitor (50&ndash;79), Isolate (&lt;50)
+        <strong>Continuous Trust Policy:</strong> Final Trust Score = 0.45 &times; Device Trust (Model A) + 0.55 &times; Data Authenticity (Model B) &middot; Thresholds: Accept (&ge;80), Monitor (50&ndash;79), Isolate (&lt;50) &middot; Passwords: bcrypt &middot; API Keys: SHA-256 &middot; Tokens: JWT (HS256)
       </div>
 
       <div class="meta-grid">
@@ -1042,7 +1088,7 @@ function exportCurrentReport(customTitle = null) {
 
       <div class="footer">
         <div>TrustGuard-IoMT &copy; 2026 &middot; Academic Demonstration &amp; Implementation Integrity</div>
-        <div>SHA-256 Token-Authenticated Audit Log &middot; Page 1 of 1</div>
+        <div>Continuous Verification Audit Log &middot; Page 1 of 1</div>
       </div>
 
       <script>
@@ -1084,7 +1130,7 @@ try {
   if (rscEl) {
     riskSummaryChartInstance = new Chart(rscEl, {
       type: 'doughnut',
-      data: { datasets: [{ data: [1, 2, 4, 8], backgroundColor: ['#ef4444', '#fb923c', '#f59e0b', '#22c55e'], borderWidth: 0 }] },
+      data: { datasets: [{ data: [4, 0, 3, 48], backgroundColor: ['#ef4444', '#fb923c', '#f59e0b', '#22c55e'], borderWidth: 0 }] },
       options: { circumference: 180, rotation: 270, cutout: '72%', plugins: { legend: { display: false }, tooltip: { enabled: false } } }
     });
   }
@@ -1095,29 +1141,40 @@ async function loadHeatmapData(silent = false) {
   if (!token) return;
 
   const reqHeaders = { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' };
+  const dQuery = getDateQueryString('?');
 
   try {
-    const res = await fetch(`${API_BASE}/api/v1/dashboard/heatmap`, { headers: reqHeaders });
+    const res = await fetch(`${API_BASE}/api/v1/dashboard/heatmap${dQuery}`, { headers: reqHeaders });
     if (!res.ok) return;
 
     const data = await res.json();
-    const roomsList = data.rooms || [];
+    const deptsList = data.departments || data.rooms || [];
+    const unitsList = data.units || [];
+
     const levelColor = {
-      low: ['#e9faf0', '#22c55e'],
-      medium: ['#fef6e7', '#f59e0b'],
-      high: ['#fff1e8', '#fb923c'],
-      critical: ['#fdecec', '#ef4444']
+      low: ['#e9faf0', '#22c55e', '#166534'],
+      medium: ['#fef6e7', '#f59e0b', '#92400e'],
+      high: ['#fff1e8', '#fb923c', '#9a3412'],
+      critical: ['#fdecec', '#ef4444', '#991b1b']
     };
 
     const fp = document.getElementById('floorPlan');
     if (fp) {
       fp.innerHTML = '';
-      roomsList.forEach(r => {
-        const [bg, fg] = levelColor[r.level] || levelColor.low;
-        fp.innerHTML += `<div class="room" style="background:${bg};">
-          <div class="room-name" style="color:${fg}; font-weight:700;">${r.name}</div>
-          <div class="room-count">${r.count} Devices · ${r.avg_score}% Trust</div>
-        </div>`;
+      deptsList.forEach(d => {
+        const [bg, fg, border] = levelColor[d.level] || levelColor.low;
+        const tooltipText = `${d.name} Department: ${d.count} Devices Bound | Avg Trust: ${d.avg_score}% | Status: ${d.critical_count > 0 ? d.critical_count + ' Isolated' : (d.warning_count > 0 ? d.warning_count + ' Monitored' : 'All Accepted')}`;
+        fp.innerHTML += `
+          <div class="room" style="background:${bg}; border-color:${border};" title="${tooltipText}">
+            <div>
+              <div class="room-name" style="color:${fg}; font-weight:700;">${d.name}</div>
+              <div style="font-size:11px; color:#57606a; margin-top:2px;">${d.count} Devices · Avg: <strong>${d.avg_score}%</strong></div>
+            </div>
+            <div style="margin-top:8px; font-size:10.5px; font-weight:700; color:${fg};">
+              ● ${d.level.toUpperCase()}
+            </div>
+          </div>
+        `;
       });
     }
 
@@ -1228,16 +1285,11 @@ async function loadMaintenanceData(silent = false) {
 
 // ---------- (Alerts are rendered dynamically via loadDashboardData) ----------
 
-// ---------- DEVICE PROFILES ----------
-const profileInfo = [
-  {lbl:'Device Type', val:'ECG Monitor'}, {lbl:'Manufacturer', val:'MedTech Solutions'},
-  {lbl:'Model', val:'ECG-2000'}, {lbl:'Serial Number', val:'ECG-ICU-001'},
-  {lbl:'Location', val:'ICU - Room 101'}, {lbl:'Installation Date', val:'Jan 15, 2025'},
-  {lbl:'Firmware Version', val:'v2.4.1'}, {lbl:'Battery Level', val:'78%'},
-  {lbl:'IP Address', val:'192.168.1.45'}, {lbl:'Data Transmission', val:'Encrypted (TLS 1.3)'}
-];
+// ---------- DEVICE PROFILES (Populated dynamically via updateDeviceProfilesSection) ----------
 const pig = document.getElementById('profileInfoGrid');
-profileInfo.forEach(i=>{ pig.innerHTML += `<div class="info-item"><div class="lbl">${i.lbl}</div><div class="val">${i.val}</div></div>`; });
+if (pig) {
+  pig.innerHTML = '<div style="color:var(--muted); font-size:12px; padding:12px;">Select a device from the dropdown above to view its operational profile.</div>';
+}
 
 // ---------- SYSTEM SETTINGS ----------
 const settingsGroups = [
@@ -1248,7 +1300,7 @@ const settingsGroups = [
   ]},
   {title:'Data Security', rows:[
     {label:'Integrity Protection', desc:'API Key & device token hashing', select:'SHA-256'},
-    {label:'Data Transmission', desc:'Encrypt data in transit', select:'TLS 1.3'},
+    {label:'Data Transmission', desc:'Token-authenticated telemetry ingest', select:'API-Key (SHA-256)'},
     {label:'Audit Logging', desc:'Record all administrative actions', toggle:true}
   ]},
   {title:'Access Control', rows:[
@@ -1674,11 +1726,13 @@ async function openPatientDetailModal(patientId) {
 
     if (res.ok) {
       const p = await res.json();
-      const assigned = p.assigned_device;
-      const dMatch = assigned ? dashboardDevices.find(d => d.id === assigned.device_id) : null;
-      const score = dMatch ? dMatch.score : 90;
-      const decision = dMatch ? dMatch.decision : 'Accept';
-      const c = trustDecisionColor(score);
+      const assignedList = (p.assigned_devices && p.assigned_devices.length > 0)
+        ? p.assigned_devices
+        : (p.assigned_device ? [p.assigned_device] : []);
+
+      const devSummaryStr = assignedList.length > 0
+        ? `${assignedList.length} Device${assignedList.length > 1 ? 's' : ''} Bound`
+        : 'None (Unassigned)';
 
       grid.innerHTML = `
         <div class="details-kv"><div class="lbl">Patient ID</div><div class="val">${p.id}</div></div>
@@ -1686,34 +1740,91 @@ async function openPatientDetailModal(patientId) {
         <div class="details-kv"><div class="lbl">Age & Gender</div><div class="val">${p.age} yrs · ${p.gender}</div></div>
         <div class="details-kv"><div class="lbl">Department & Room</div><div class="val">${p.department} · ${p.room}</div></div>
         <div class="details-kv"><div class="lbl">Status</div><div class="val">${p.status}</div></div>
-        <div class="details-kv"><div class="lbl">Assigned Device</div><div class="val">${assigned ? `${assigned.device_name} (${assigned.device_id})` : 'None'}</div></div>
+        <div class="details-kv"><div class="lbl">Assigned Devices</div><div class="val">${devSummaryStr}</div></div>
       `;
 
-      telem.innerHTML = `
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
-          <div>
-            <span style="color:var(--muted); font-size:11.5px;">Unified AI Trust Score:</span>
-            <span style="font-weight:800; color:var(--${c}); font-size:16px; margin-left:6px;">${score}%</span>
+      if (assignedList.length === 0) {
+        telem.innerHTML = `
+          <div style="padding:16px; text-align:center; color:var(--muted); font-size:12.5px;">
+            No Medical IoT devices are currently bound to this patient. Click "Assign Device" below to attach a monitored device.
           </div>
-          <span class="badge" style="background:var(--${c}-bg); color:var(--${c}); font-weight:700;">● ${decision}</span>
-        </div>
-        <div style="font-size:12px; color:var(--muted); line-height:1.5;">
-          ${dMatch ? dMatch.reason : 'Continuous AI verification is nominal. Device telemetry validated via Model A and Model B.'}
-        </div>
-      `;
+        `;
+      } else {
+        let devRowsHtml = `<div style="display:flex; flex-direction:column; gap:10px;">`;
+        assignedList.forEach(dev => {
+          const dMatch = dashboardDevices.find(d => d.id === dev.device_id);
+          const score = dMatch ? dMatch.score : 92;
+          const dScore = dMatch ? dMatch.device_trust_subscore : 95;
+          const aScore = dMatch ? dMatch.data_authenticity_subscore : 98;
+          const decision = dMatch ? dMatch.decision : (score >= 80 ? 'Accept' : score >= 50 ? 'Monitor' : 'Isolate');
+          const c = trustDecisionColor(score);
+
+          devRowsHtml += `
+            <div style="background:#10162a; border:1px solid var(--border); border-radius:10px; padding:12px 14px;">
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; flex-wrap:wrap; gap:6px;">
+                <div>
+                  <div style="font-weight:700; color:#fff; font-size:13px;">${dev.device_name || dev.device_id} <span style="color:var(--muted); font-size:11px; font-weight:400;">(${dev.device_id} · ${dev.device_type})</span></div>
+                  <div style="font-size:11px; color:var(--muted);">${dev.location || dev.department || 'Hospital Room'}</div>
+                </div>
+                <div style="display:flex; align-items:center; gap:8px;">
+                  <span class="badge" style="background:var(--${c}-bg); color:var(--${c}); font-weight:700;">● ${score}% (${decision})</span>
+                  <button class="btn-action danger" onclick="unassignDeviceFromPatient('${p.id}', '${dev.device_id}')" style="font-size:10.5px; padding:4px 8px;">Unbind</button>
+                </div>
+              </div>
+              <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; font-size:11.5px; background:rgba(255,255,255,0.03); padding:8px 10px; border-radius:6px;">
+                <div><span style="color:var(--muted);">Model A (Dev):</span> <strong style="color:var(--accent);">${dScore}%</strong></div>
+                <div><span style="color:var(--muted);">Model B (Auth):</span> <strong style="color:var(--accent);">${aScore}%</strong></div>
+                <div><span style="color:var(--muted);">Policy:</span> <strong style="color:var(--${c});">${decision}</strong></div>
+              </div>
+            </div>
+          `;
+        });
+        devRowsHtml += `</div>`;
+        telem.innerHTML = devRowsHtml;
+      }
 
       // Set action buttons in footer
       document.getElementById('pDetailEditBtn').onclick = () => {
         closePatientDetailModal();
         openEditPatientModal(p.id);
       };
-      document.getElementById('pDetailAssignBtn').onclick = () => {
-        closePatientDetailModal();
-        openAssignModal(p.id, assigned ? assigned.device_id : null);
-      };
+      const assignBtn = document.getElementById('pDetailAssignBtn');
+      if (assignBtn) {
+        assignBtn.textContent = '+ Assign Device';
+        assignBtn.onclick = () => {
+          closePatientDetailModal();
+          openAssignModal(p.id, null);
+        };
+      }
     }
   } catch (err) {
     console.error('Error loading patient detail:', err);
+  }
+}
+
+async function unassignDeviceFromPatient(patientId, deviceId) {
+  if (!confirm(`Are you sure you want to unbind device '${deviceId}' from patient '${patientId}'?`)) return;
+  const token = localStorage.getItem('authToken');
+  if (!token) return;
+  try {
+    const res = await fetch(`${API_BASE}/api/v1/patients/${encodeURIComponent(patientId)}/unassign-device/${encodeURIComponent(deviceId)}`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    });
+    if (res.ok) {
+      showToast(`Device '${deviceId}' successfully unassigned from patient '${patientId}'.`);
+      openPatientDetailModal(patientId);
+      loadPatients(true);
+      loadDashboardData(true);
+    } else {
+      const err = await res.json();
+      showToast(err.detail || 'Could not unassign device.');
+    }
+  } catch (e) {
+    showToast('Network error unassigning device.');
   }
 }
 
@@ -2232,51 +2343,107 @@ document.querySelectorAll('.tab-btn').forEach(b=>{
 const dateTrigger = document.getElementById('dateRangeTrigger');
 const dateDropdown = document.getElementById('dateRangeDropdown');
 const dateLabel = document.getElementById('dateRangeLabel');
-const customDateInput = document.getElementById('customDateInput');
+const customStartDateInput = document.getElementById('customStartDateInput');
+const customEndDateInput = document.getElementById('customEndDateInput');
+const resetDateBtn = document.getElementById('resetDateBtn');
+const applyDateBtn = document.getElementById('applyDateBtn');
 
 if (dateTrigger) {
-  dateTrigger.addEventListener('click', (e)=>{
+  dateTrigger.addEventListener('click', (e) => {
     e.stopPropagation();
     if (dateDropdown) dateDropdown.classList.toggle('open');
   });
 }
 if (dateDropdown) {
-  document.addEventListener('click', (e)=>{
-    if(!dateDropdown.contains(e.target) && e.target !== dateTrigger){
+  document.addEventListener('click', (e) => {
+    if (!dateDropdown.contains(e.target) && e.target !== dateTrigger) {
       dateDropdown.classList.remove('open');
     }
   });
 }
 
-document.querySelectorAll('.date-preset-btn').forEach(btn=>{
-  btn.addEventListener('click', ()=>{
-    const days = parseInt(btn.dataset.days, 10);
-    const end = new Date(2026, 4, 16); // May 16, 2026
-    const start = new Date(end);
-    start.setDate(start.getDate() - days);
-    const fmt = d => d.toLocaleDateString('en-US', {month:'short', day:'numeric', year:'numeric'});
-    if (dateLabel) dateLabel.textContent = days === 10 ? `Data for ${fmt(start)}` : `${fmt(start)} – ${fmt(end)}`;
-    loadDashboardData(true);
-    loadAnalyticsData(true);
-    loadReportsData(activeReportTab, true);
-    if (dateDropdown) dateDropdown.classList.remove('open');
-    showToast(`Filtering metrics: ${dateLabel ? dateLabel.textContent : ''}`);
+function updateDateFilter(startStr, endStr, labelText) {
+  activeStartDate = startStr;
+  activeEndDate = endStr;
+  if (dateLabel) dateLabel.textContent = labelText;
+  if (dateDropdown) dateDropdown.classList.remove('open');
+  showToast(`Filtering metrics: ${labelText}`);
+  loadDashboardData(false);
+  loadAnalyticsData(false);
+  loadReportsData(activeReportTab, false);
+}
+
+document.querySelectorAll('.date-preset-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const days = btn.dataset.days;
+    if (days === 'all') {
+      updateDateFilter(null, null, 'All Telemetry Data');
+      return;
+    }
+    const numDays = parseInt(days, 10);
+    const end = new Date();
+    const start = new Date();
+    start.setDate(start.getDate() - numDays);
+
+    const startISO = start.toISOString().split('T')[0];
+    const endISO = end.toISOString().split('T')[0];
+    const fmt = d => d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    const label = `Last ${numDays} Days (${fmt(start)} – ${fmt(end)})`;
+
+    updateDateFilter(startISO, endISO, label);
   });
 });
 
-const applyDateBtn = document.getElementById('applyDateBtn');
 if (applyDateBtn) {
-  applyDateBtn.addEventListener('click', ()=>{
-    const val = customDateInput ? customDateInput.value : null;
-    if(!val){ showToast('Please choose a date first.'); return; }
-    const d = new Date(val + 'T00:00:00');
-    const fmt = d.toLocaleDateString('en-US', {month:'short', day:'numeric', year:'numeric'});
-    if (dateLabel) dateLabel.textContent = `Data for ${fmt}`;
-    loadDashboardData(true);
-    loadAnalyticsData(true);
-    loadReportsData(activeReportTab, true);
-    if (dateDropdown) dateDropdown.classList.remove('open');
-    showToast(`Showing real-time dataset metrics for ${fmt}`);
+  applyDateBtn.addEventListener('click', () => {
+    const sVal = customStartDateInput ? customStartDateInput.value : null;
+    const eVal = customEndDateInput ? customEndDateInput.value : null;
+
+    if (!sVal && !eVal) {
+      showToast('Please select a start or end date.');
+      return;
+    }
+
+    const startStr = sVal || eVal;
+    const endStr = eVal || sVal;
+
+    let label = `${startStr} to ${endStr}`;
+    if (startStr === endStr) {
+      label = `Data for ${startStr}`;
+    }
+
+    updateDateFilter(startStr, endStr, label);
+  });
+}
+
+if (resetDateBtn) {
+  resetDateBtn.addEventListener('click', () => {
+    if (customStartDateInput) customStartDateInput.value = '';
+    if (customEndDateInput) customEndDateInput.value = '';
+    updateDateFilter(null, null, 'All Telemetry Data');
+  });
+}
+
+// Bind Trend Period Selector
+const trendPeriodSelect = document.getElementById('trendPeriodSelect');
+if (trendPeriodSelect) {
+  trendPeriodSelect.addEventListener('change', async (e) => {
+    activeTrendPeriod = e.target.value;
+    const token = localStorage.getItem('authToken');
+    if (!token) return;
+    const tQuery = `?period=${encodeURIComponent(activeTrendPeriod)}${activeStartDate ? '&start_date=' + encodeURIComponent(activeStartDate) : ''}${activeEndDate ? '&end_date=' + encodeURIComponent(activeEndDate) : ''}`;
+    try {
+      const res = await fetch(`${API_BASE}/api/v1/dashboard/trust-trend${tQuery}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const tData = await res.json();
+        dashboardTrend = tData;
+        renderTrendCharts(tData);
+      }
+    } catch (err) {
+      console.error('Error updating trend period:', err);
+    }
   });
 }
 

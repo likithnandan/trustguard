@@ -4,10 +4,11 @@ Doctor Portal REST API Router (/api/v1/doctor)
 
 Provides dynamic, verified patient monitoring streams for doctor-facing verification:
 - GET /api/v1/doctor/patients: Lists all admitted patients with their latest
-  live vitals, continuous AI trust scores, decision status, and clinical reasons.
+  simulated IoMT vitals, continuous AI trust scores, decision status, and operational reasons.
 - GET /api/v1/doctor/patients/{patient_id}: Detailed single patient monitoring view.
 """
 
+import json
 from typing import Dict, List, Optional, Any
 from fastapi import APIRouter, Header, HTTPException, status, Query, Depends
 
@@ -115,9 +116,30 @@ def get_doctor_patients_list(
     for r in rows:
         trust_val = r["final_trust_score"]
         if trust_val is not None:
-            trust_rounded = round(float(trust_val))
+            trust_rounded = round(float(trust_val), 1)
         else:
-            trust_rounded = 100
+            trust_rounded = 100.0
+
+        # Parse XAI Explanation
+        xai_data = {}
+        if r.get("xai_explanation_json"):
+            try:
+                xai_data = json.loads(r["xai_explanation_json"])
+            except Exception:
+                xai_data = {}
+
+        # Fetch all active assigned devices for this patient (multi-device support)
+        active_assignments = database.get_active_assignments_for_patient(r["patient_id"])
+        assigned_devices = [
+            {
+                "deviceId": a["device_id"],
+                "deviceName": a["device_name"],
+                "deviceType": a.get("device_type") or "IoMT Sensor",
+                "deviceStatus": a.get("device_status") or "Active",
+                "location": a.get("location") or r.get("room")
+            }
+            for a in active_assignments
+        ]
 
         formatted_patients.append({
             "id": r["patient_id"],
@@ -126,10 +148,13 @@ def get_doctor_patients_list(
             "gender": r["gender"],
             "department": r["department"],
             "room": r["room"],
-            "device": r["device_name"] or "No Device Assigned",
-            "deviceId": r["device_id"] or "N/A",
+            "device": r["device_name"] or ("Multiple Devices" if len(assigned_devices) > 1 else "No Device Assigned"),
+            "deviceId": r["device_id"] or (assigned_devices[0]["deviceId"] if assigned_devices else "N/A"),
+            "assignedDevices": assigned_devices,
             "trust": trust_rounded,
             "decision": r["decision"] or "Accept",
+            "deviceTrust": round(float(r["device_trust_subscore"]), 1) if r["device_trust_subscore"] is not None else 100.0,
+            "dataAuthenticity": round(float(r["data_authenticity_subscore"]), 1) if r["data_authenticity_subscore"] is not None else 100.0,
             "vitals": {
                 "heartRate": round(r["heart_rate"]) if r["heart_rate"] is not None else "--",
                 "spo2": round(r["spo2"]) if r["spo2"] is not None else "--",
@@ -140,8 +165,9 @@ def get_doctor_patients_list(
                 "respRate": round(r["respiratory_rate"]) if r["respiratory_rate"] is not None else "--"
             },
             "flaggedVital": r["flagged_vital"],
-            "reason": r["clinical_reason"] or "All device and network signals are within normal range.",
-            "recommendedAction": r["recommended_action"] or "None — continue normal monitoring",
+            "reason": r["clinical_reason"] or "All device and network transmission signals are verified within normal parameters.",
+            "recommendedAction": r["recommended_action"] or "None — proceed with standard patient monitoring.",
+            "xai": xai_data,
             "evaluatedAt": r["evaluated_at"]
         })
 
@@ -156,7 +182,7 @@ def get_doctor_patient_detail(
     patient_id: str,
     user: Dict[str, Any] = Depends(get_current_authenticated_user)
 ):
-    """Retrieves single patient detail with latest telemetry evaluation."""
+    """Retrieves single patient detail with latest telemetry evaluation, Model A/B subscores, XAI, and assigned devices."""
     clean_id = patient_id.strip().upper()
     rows = database.get_latest_patient_vitals_and_trust()
     match = next((r for r in rows if r["patient_id"] == clean_id), None)
@@ -167,7 +193,26 @@ def get_doctor_patient_detail(
         )
 
     trust_val = match["final_trust_score"]
-    trust_rounded = round(float(trust_val)) if trust_val is not None else 100
+    trust_rounded = round(float(trust_val), 1) if trust_val is not None else 100.0
+
+    xai_data = {}
+    if match.get("xai_explanation_json"):
+        try:
+            xai_data = json.loads(match["xai_explanation_json"])
+        except Exception:
+            xai_data = {}
+
+    active_assignments = database.get_active_assignments_for_patient(clean_id)
+    assigned_devices = [
+        {
+            "deviceId": a["device_id"],
+            "deviceName": a["device_name"],
+            "deviceType": a.get("device_type") or "IoMT Sensor",
+            "deviceStatus": a.get("device_status") or "Active",
+            "location": a.get("location") or match.get("room")
+        }
+        for a in active_assignments
+    ]
 
     return {
         "id": match["patient_id"],
@@ -176,10 +221,13 @@ def get_doctor_patient_detail(
         "gender": match["gender"],
         "department": match["department"],
         "room": match["room"],
-        "device": match["device_name"] or "No Device Assigned",
-        "deviceId": match["device_id"] or "N/A",
+        "device": match["device_name"] or ("Multiple Devices" if len(assigned_devices) > 1 else "No Device Assigned"),
+        "deviceId": match["device_id"] or (assigned_devices[0]["deviceId"] if assigned_devices else "N/A"),
+        "assignedDevices": assigned_devices,
         "trust": trust_rounded,
         "decision": match["decision"] or "Accept",
+        "deviceTrust": round(float(match["device_trust_subscore"]), 1) if match["device_trust_subscore"] is not None else 100.0,
+        "dataAuthenticity": round(float(match["data_authenticity_subscore"]), 1) if match["data_authenticity_subscore"] is not None else 100.0,
         "vitals": {
             "heartRate": round(match["heart_rate"]) if match["heart_rate"] is not None else "--",
             "spo2": round(match["spo2"]) if match["spo2"] is not None else "--",
@@ -190,7 +238,46 @@ def get_doctor_patient_detail(
             "respRate": round(match["respiratory_rate"]) if match["respiratory_rate"] is not None else "--"
         },
         "flaggedVital": match["flagged_vital"],
-        "reason": match["clinical_reason"] or "All device and network signals are within normal range.",
-        "recommendedAction": match["recommended_action"] or "None — continue normal monitoring",
+        "reason": match["clinical_reason"] or "All device and network transmission signals are verified within normal parameters.",
+        "recommendedAction": match["recommended_action"] or "None — proceed with standard patient monitoring.",
+        "xai": xai_data,
         "evaluatedAt": match["evaluated_at"]
     }
+
+
+@router.get("/patients/{patient_id}/history", summary="Get historical trust evaluations for a patient")
+def get_doctor_patient_trust_history(
+    patient_id: str,
+    limit: int = Query(20, ge=1, le=100, description="Max history records to return"),
+    user: Dict[str, Any] = Depends(get_current_authenticated_user)
+):
+    """Retrieves chronological trust evaluation history records for the selected patient."""
+    clean_id = patient_id.strip().upper()
+    patient = database.get_patient_by_id(clean_id)
+    if not patient:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Patient '{clean_id}' was not found."
+        )
+
+    records = database.get_patient_trust_history(clean_id, limit=limit)
+    formatted = []
+    for rec in records:
+        formatted.append({
+            "evaluationId": rec["evaluation_id"],
+            "timestamp": rec["timestamp"],
+            "trustScore": round(float(rec["final_trust_score"]), 1) if rec["final_trust_score"] is not None else None,
+            "deviceTrust": round(float(rec["device_trust_subscore"]), 1) if rec["device_trust_subscore"] is not None else None,
+            "dataAuthenticity": round(float(rec["data_authenticity_subscore"]), 1) if rec["data_authenticity_subscore"] is not None else None,
+            "decision": rec["decision"] or "Accept",
+            "deviceId": rec["device_id"],
+            "deviceName": rec.get("device_name") or rec["device_id"],
+            "clinicalReason": rec.get("clinical_reason") or ""
+        })
+
+    return {
+        "patientId": clean_id,
+        "count": len(formatted),
+        "history": formatted
+    }
+

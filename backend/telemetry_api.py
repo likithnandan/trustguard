@@ -70,51 +70,9 @@ MODEL_B_CAT_MAPS = {
 
 
 def map_features_for_model_a(device_features: Dict[str, Any], vitals: VitalsPayload, patient: Dict[str, Any]) -> List[float]:
-    """Extracts and encodes the exact 30 features required by Model A in order."""
-    row = []
-    for f in backend.MODEL_A_FEATURES:
-        val = None
-        # 1. Check in explicit device_features
-        if f in device_features:
-            val = device_features[f]
-        # 2. Check in vitals
-        elif f == "Heart_Rate" or f == "Pulse_Rate":
-            val = vitals.heart_rate
-        elif f == "SpO2":
-            val = vitals.spo2
-        elif f == "Systolic_BP":
-            val = vitals.systolic_bp
-        elif f == "Diastolic_BP":
-            val = vitals.diastolic_bp
-        elif f == "Body_Temperature":
-            val = vitals.body_temperature
-        elif f == "Blood_Glucose":
-            val = vitals.blood_glucose
-        elif f == "ECG_Value":
-            val = vitals.ecg_value
-        # 3. Check in patient record
-        elif f == "Age" and patient:
-            val = patient.get("age")
-        elif f == "Gender" and patient:
-            val = patient.get("gender")
-        elif f == "Department" and patient:
-            val = patient.get("department")
-
-        # Encode categorical strings if applicable
-        if f in MODEL_A_CAT_MAPS and isinstance(val, str):
-            val = MODEL_A_CAT_MAPS[f].get(val, 0)
-        elif isinstance(val, str):
-            # Try numeric parse or hash fallback
-            try:
-                val = float(val.replace("W", "").replace("R", "").replace("v", ""))
-            except:
-                val = float(abs(hash(val)) % 100)
-
-        # Default fallback
-        if val is None:
-            val = 0.0
-        row.append(float(val))
-    return row
+    """Extracts and encodes the exact 37 features required by Model A in authoritative order (30 base + 7 engineered)."""
+    vitals_dict = vitals.model_dump() if hasattr(vitals, "model_dump") else (vitals or {})
+    return backend.build_model_a_feature_vector(device_features, vitals_dict, patient)
 
 
 def map_features_for_model_b(network_features: Dict[str, Any], vitals: VitalsPayload) -> List[float]:

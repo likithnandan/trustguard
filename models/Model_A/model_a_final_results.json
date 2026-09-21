@@ -1,0 +1,118 @@
+{
+  "model": "Model A - Device Trust Model",
+  "algorithm": "XGBoost",
+  "dataset": "project_Dataset_1_v2.xlsx",
+  "original_feature_count": 30,
+  "engineered_feature_count": 7,
+  "total_feature_count": 37,
+  "features": [
+    "Department",
+    "Ward",
+    "Room_No",
+    "Age",
+    "Gender",
+    "Device_Type",
+    "ECG_Value",
+    "Heart_Rate",
+    "SpO2",
+    "Pulse_Rate",
+    "Systolic_BP",
+    "Diastolic_BP",
+    "Body_Temperature",
+    "Blood_Glucose",
+    "Battery_Level",
+    "Battery_Health",
+    "Charging_Cycles",
+    "CPU_Usage",
+    "Memory_Usage",
+    "Device_Uptime",
+    "RSSI",
+    "Signal_Strength",
+    "Network_Latency",
+    "Packet_Loss",
+    "Jitter",
+    "Sensor_Drift",
+    "Sensor_Noise",
+    "Calibration_Status",
+    "Restart_Count",
+    "Previous_Battery_Level",
+    "Battery_Drop",
+    "Battery_Ratio",
+    "Battery_Health_Gap",
+    "Network_Stress",
+    "Signal_Gap",
+    "Resource_Stress",
+    "Vital_Pulse_Difference"
+  ],
+  "classes": [
+    "Monitor",
+    "Trusted",
+    "Untrusted"
+  ],
+  "training_samples": 70000,
+  "validation_samples": 15000,
+  "final_test_samples": 15000,
+  "split": "70/15/15",
+  "split_random_state": 123,
+  "model_random_state": 42,
+  "accuracy": 83.23333333333333,
+  "macro_precision": 83.44959145391367,
+  "macro_recall": 83.29847494553377,
+  "macro_f1": 83.36585923813814,
+  "per_class": {
+    "Monitor": {
+      "precision": 74.66158245948522,
+      "recall": 76.7843137254902,
+      "f1": 75.70807153214113
+    },
+    "Trusted": {
+      "precision": 88.6835079071678,
+      "recall": 87.23232323232322,
+      "f1": 87.95192993176495
+    },
+    "Untrusted": {
+      "precision": 87.00368399508801,
+      "recall": 85.87878787878788,
+      "f1": 86.43757625050834
+    }
+  },
+  "confusion_matrix": [
+    [
+      3916,
+      550,
+      634
+    ],
+    [
+      631,
+      4318,
+      1
+    ],
+    [
+      698,
+      1,
+      4251
+    ]
+  ],
+  "hyperparameters": {
+    "n_estimators": 600,
+    "max_depth": 4,
+    "learning_rate": 0.05,
+    "min_child_weight": 2,
+    "gamma": 0,
+    "subsample": 0.9,
+    "colsample_bytree": 0.9,
+    "reg_alpha": 0,
+    "reg_lambda": 1.5,
+    "objective": "multi:softprob",
+    "eval_metric": "mlogloss"
+  },
+  "engineered_features": [
+    "Battery_Drop",
+    "Battery_Ratio",
+    "Battery_Health_Gap",
+    "Network_Stress",
+    "Signal_Gap",
+    "Resource_Stress",
+    "Vital_Pulse_Difference"
+  ]
+}
