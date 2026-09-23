@@ -270,17 +270,40 @@ export function Login() {
       <div className={styles.gridBg}></div>
       <div className={styles.glowOrb}></div>
 
-      <div className={styles.hero}>
-        <div className={styles.brandBadge}>
-          <Shield size={12} /> Medical IoT Trust Platform
-        </div>
-        <h1 className={styles.brandTitle}>TrustGuard-IoMT</h1>
-        <p className={styles.brandSub}>
-          An Intelligent AI-Driven Continuous Trust Verification for Medical IoT
-        </p>
+      {/* Animated ECG Waveform */}
+      <div className={styles.ecgWrap}>
+        <svg viewBox="0 0 560 90" width="100%" height="100%">
+          <path className={styles.ecgPath} d="M0,45 L110,45 L135,45 L150,15 L168,78 L184,45 L215,45 L228,30 L242,45 L560,45" />
+        </svg>
       </div>
 
-      <div className={styles.card}>
+      {/* Animated Morphing Trust Shield */}
+      <div className={styles.shieldWrap}>
+        <svg viewBox="0 0 96 96" width="100%" height="100%">
+          <path className={styles.shieldOutline} d="M48 6 L86 20 V46 C86 70 70 86 48 92 C26 86 10 70 10 46 V20 Z" />
+          <path className={styles.shieldFill} d="M48 10 L82 23 V46 C82 68 67 82 48 88 C29 82 14 68 14 46 V23 Z" fill="rgba(62,201,255,0.14)" stroke="none" />
+          <g className={styles.shieldFill}>
+            <circle className={styles.shieldPulse} cx="48" cy="46" r="4" fill="var(--accent)" />
+          </g>
+          <path className={styles.shieldCheck} d="M34 47 L44 57 L64 35" />
+        </svg>
+      </div>
+
+      <div className={styles.content}>
+        <div className={styles.eyebrow}>
+          <span className={styles.dot}></span> SYSTEM ONLINE
+        </div>
+
+        <div className={styles.hero}>
+          <h1 className={styles.brandTitle}>
+            An Intelligent <span>AI-Driven</span> Continuous Trust Verification for Medical IoT
+          </h1>
+          <p className={styles.brandSub}>
+            Continuously verifying device integrity and data authenticity across connected medical devices.
+          </p>
+        </div>
+
+        <div className={styles.card}>
         {/* Quick Demo Credentials Bar */}
         <div style={{ marginBottom: '16px', background: 'rgba(255, 255, 255, 0.03)', border: '1px solid var(--border)', borderRadius: '10px', padding: '10px 12px' }}>
           <div style={{ fontSize: '11px', fontWeight: '700', color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.6px', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '5px' }}>
@@ -688,12 +711,18 @@ export function Login() {
         )}
       </div>
 
-      <div style={{ marginTop: '24px', fontSize: '11.5px', color: 'var(--muted)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+      <div className={styles.verifyLine}>
+        <span>VERIFYING TRUST</span>
+        <span className={styles.bar}><span></span></span>
+      </div>
+
+      <div style={{ marginTop: '16px', fontSize: '11.5px', color: 'var(--muted)', display: 'flex', alignItems: 'center', gap: '8px' }}>
         <span>Continuous AI Verification</span>
         <span>•</span>
         <span>45% DT + 55% DA Policy</span>
       </div>
     </div>
+  </div>
   );
 }
 

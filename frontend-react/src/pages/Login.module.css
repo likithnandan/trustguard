@@ -7,7 +7,8 @@
   padding: 30px 20px;
   background-color: var(--bg);
   position: relative;
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
 }
 
 .gridBg {
@@ -33,43 +34,213 @@
   pointer-events: none;
 }
 
+/* ---------- ECG & SHIELD OPENING ANIMATIONS ---------- */
+.ecgWrap {
+  width: min(560px, 86vw);
+  height: 90px;
+  opacity: 1;
+  animation: ecgFadeOut 0.6s ease forwards;
+  animation-delay: 2.15s;
+}
+
+.ecgPath {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 2.2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  filter: drop-shadow(0 0 6px rgba(62, 201, 255, 0.65));
+  stroke-dasharray: 1000;
+  stroke-dashoffset: 1000;
+  animation: drawEcg 1.9s cubic-bezier(.65, 0, .35, 1) forwards;
+}
+
+@keyframes drawEcg {
+  to { stroke-dashoffset: 0; }
+}
+
+@keyframes ecgFadeOut {
+  to {
+    opacity: 0;
+    transform: scale(0.85);
+    height: 0;
+    margin: 0;
+  }
+}
+
+.shieldWrap {
+  position: absolute;
+  width: 96px;
+  height: 96px;
+  opacity: 0;
+  animation: shieldFadeIn 0.5s ease forwards;
+  animation-delay: 2.5s;
+}
+
+@keyframes shieldFadeIn {
+  to { opacity: 1; }
+}
+
+.shieldOutline {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 2.4;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+  filter: drop-shadow(0 0 8px rgba(62, 201, 255, 0.7));
+  stroke-dasharray: 300;
+  stroke-dashoffset: 300;
+  animation: drawShield 1s cubic-bezier(.65, 0, .35, 1) forwards;
+  animation-delay: 2.55s;
+}
+
+@keyframes drawShield {
+  to { stroke-dashoffset: 0; }
+}
+
+.shieldFill {
+  opacity: 0;
+  animation: fillShield 0.7s ease forwards;
+  animation-delay: 3.5s;
+}
+
+@keyframes fillShield {
+  to { opacity: 1; }
+}
+
+.shieldCheck {
+  fill: none;
+  stroke: var(--bg);
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 40;
+  stroke-dashoffset: 40;
+  animation: drawCheck 0.4s ease forwards;
+  animation-delay: 3.9s;
+}
+
+@keyframes drawCheck {
+  to { stroke-dashoffset: 0; }
+}
+
+.shieldPulse {
+  animation: shieldPulseAnim 2.4s ease-in-out infinite;
+  animation-delay: 4.3s;
+  opacity: 0;
+}
+
+@keyframes shieldPulseAnim {
+  0%, 100% {
+    filter: drop-shadow(0 0 10px rgba(62, 201, 255, 0.55));
+    opacity: 1;
+  }
+  50% {
+    filter: drop-shadow(0 0 22px rgba(62, 201, 255, 0.9));
+    opacity: 1;
+  }
+}
+
+.content {
+  margin-top: 130px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  opacity: 0;
+  animation: contentIn 0.7s ease forwards;
+  animation-delay: 4.0s;
+  transform: translateY(10px);
+  width: 100%;
+}
+
+@keyframes contentIn {
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.eyebrow {
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  letter-spacing: 2.5px;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin-bottom: 14px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.eyebrow .dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--green);
+  box-shadow: 0 0 8px var(--green);
+}
+
 .hero {
   position: relative;
   z-index: 2;
   text-align: center;
-  max-width: 580px;
-  margin-bottom: 28px;
-}
-
-.brandBadge {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  background: rgba(62, 201, 255, 0.08);
-  border: 1px solid rgba(62, 201, 255, 0.25);
-  border-radius: 20px;
-  padding: 4px 14px;
-  font-size: 11px;
-  letter-spacing: 0.8px;
-  text-transform: uppercase;
-  color: var(--accent);
-  font-family: var(--font-mono);
-  margin-bottom: 14px;
+  max-width: 680px;
+  margin-bottom: 24px;
 }
 
 .brandTitle {
   font-family: var(--font-display);
-  font-size: 28px;
+  font-size: clamp(20px, 3.2vw, 32px);
   font-weight: 700;
   color: #fff;
   letter-spacing: -0.5px;
-  margin-bottom: 8px;
+  line-height: 1.25;
+  margin-bottom: 12px;
+}
+
+.brandTitle span {
+  color: var(--accent);
 }
 
 .brandSub {
-  font-size: 13.5px;
+  font-size: 14px;
   color: var(--text-dim);
-  line-height: 1.5;
+  line-height: 1.6;
+  max-width: 520px;
+  margin: 0 auto;
+}
+
+.verifyLine {
+  margin-top: 22px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.verifyLine .bar {
+  width: 80px;
+  height: 3px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.verifyLine .bar span {
+  display: block;
+  height: 100%;
+  width: 0%;
+  background: var(--accent);
+  animation: barFill 1.2s ease forwards;
+  animation-delay: 4.3s;
+}
+
+@keyframes barFill {
+  to { width: 100%; }
 }
 
 .card {
