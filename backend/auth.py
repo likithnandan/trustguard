@@ -24,6 +24,7 @@ INSTALL:
     pip install fastapi uvicorn bcrypt pyjwt pydantic[email]
 """
 
+import os
 import sqlite3
 import bcrypt
 import jwt
@@ -38,19 +39,38 @@ from pathlib import Path
 from fastapi import APIRouter, HTTPException, Header
 from pydantic import BaseModel, EmailStr, field_validator
 
+# Automatically load environment variables from backend/.env if present
+def _load_env_file():
+    env_file = Path(__file__).parent / ".env"
+    if env_file.exists():
+        try:
+            with open(env_file, "r", encoding="utf-8") as f:
+                for line in f:
+                    line = line.strip()
+                    if line and not line.startswith("#") and "=" in line:
+                        k, v = line.split("=", 1)
+                        k = k.strip()
+                        v = v.strip().strip('"').strip("'")
+                        if k not in os.environ:
+                            os.environ[k] = v
+        except Exception:
+            pass
+
+_load_env_file()
+
 DB_PATH = Path(__file__).parent / "users.db"
-JWT_SECRET = "trustguard_iomt_jwt_super_secret_signing_key_2026"
+JWT_SECRET = os.getenv("JWT_SECRET", "trustguard_iomt_jwt_super_secret_signing_key_2026")
 JWT_ALGORITHM = "HS256"
-JWT_EXPIRY_HOURS = 12
-OTP_EXPIRY_MINUTES = 10
+JWT_EXPIRY_HOURS = int(os.getenv("JWT_EXPIRY_HOURS", 12))
+OTP_EXPIRY_MINUTES = int(os.getenv("OTP_EXPIRY_MINUTES", 10))
 
 # ============================================================
-# FILL THESE IN - see setup instructions above
+# SMTP CONFIGURATION (Loaded from backend/.env)
 # ============================================================
-SMTP_EMAIL = ""
-SMTP_APP_PASSWORD = ""
-SMTP_HOST = "smtp.gmail.com"
-SMTP_PORT = 465
+SMTP_EMAIL = os.getenv("SMTP_EMAIL", "")
+SMTP_APP_PASSWORD = os.getenv("SMTP_APP_PASSWORD", "")
+SMTP_HOST = os.getenv("SMTP_HOST", "smtp.gmail.com")
+SMTP_PORT = int(os.getenv("SMTP_PORT", 465))
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
