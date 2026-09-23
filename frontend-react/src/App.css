@@ -1,0 +1,76 @@
+@import "tailwindcss";
+
+:root {
+  --bg: #070d18;
+  --bg-topbar: #08111e;
+  --sidebar: #060b14;
+  --panel: #0d1726;
+  --panel-2: #111e33;
+  --panel-hover: #14243d;
+  --border: #16243a;
+  --border-soft: #121c2e;
+  --accent: #3ec9ff;
+  --accent-2: #38bdf8;
+  --accent-soft: rgba(62, 201, 255, 0.12);
+  --text: #e2e8f0;
+  --text-dim: #94a3b8;
+  --muted: #64748b;
+  --green: #2dd4a0;
+  --green-bg: rgba(45, 212, 160, 0.12);
+  --amber: #ffb020;
+  --amber-bg: rgba(255, 176, 32, 0.12);
+  --red: #ff4d6a;
+  --red-bg: rgba(255, 77, 106, 0.12);
+  --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+  --font-display: 'Space Grotesk', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  background-color: var(--bg);
+  color: var(--text);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  min-height: 100vh;
+}
+
+.app-container {
+  display: flex;
+  min-height: 100vh;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.spin-icon {
+  animation: spin 1s linear infinite;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--muted);
+}

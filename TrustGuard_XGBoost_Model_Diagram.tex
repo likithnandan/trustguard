@@ -1,0 +1,505 @@
+\documentclass[border=16pt,tikz]{standalone}
+\usepackage[T1]{fontenc}
+\usepackage{helvet}
+\renewcommand{\familydefault}{\sfdefault}
+\usepackage{amsmath,amssymb}
+\usepackage{xcolor}
+\usepackage{tikz}
+\usetikzlibrary{shapes.geometric, arrows.meta, positioning, calc, fit, backgrounds}
+
+% ==============================================================================
+% COLOR PALETTE (Publication-Quality IEEE Standards - Distinct & Harmonious)
+% ==============================================================================
+% Core Typography & Frame
+\definecolor{ieeeDark}{HTML}{0F172A}          % Slate deep black
+\definecolor{ieeeMuted}{HTML}{334155}         % Slate body text
+\definecolor{cardBorder}{HTML}{94A3B8}        % Neutral card border
+
+% Model A Palette (Device Trust - Academic Steel Blue)
+\definecolor{modelABorder}{HTML}{1E4E8C}      % Steel Blue border
+\definecolor{modelABg}{HTML}{F4F8FC}          % Container background
+\definecolor{modelAHeader}{HTML}{1E4E8C}      % Header banner
+\definecolor{modelACard}{HTML}{E8F1FA}        % Inner card background
+\definecolor{modelAText}{HTML}{0C3260}        % Primary blue text
+
+% Model B Palette (Data Authenticity - Academic Royal Violet)
+\definecolor{modelBBorder}{HTML}{581C87}      % Deep Violet border
+\definecolor{modelBBg}{HTML}{FAF5FF}          % Container background
+\definecolor{modelBHeader}{HTML}{581C87}      % Header banner
+\definecolor{modelBCard}{HTML}{F3E8FF}        % Inner card background
+\definecolor{modelBText}{HTML}{3B0764}        % Primary violet text
+
+% Sequential Gradient Boosting Ensemble Palette
+\definecolor{treeBorder}{HTML}{475569}        % Tree node border
+\definecolor{treeAccent}{HTML}{C2410C}        % Residual arrow / Copper orange
+\definecolor{treeAccentBg}{HTML}{FFF7ED}      % Ensemble card fill
+
+% XAI Feature Attribution Palette (Muted Petrol Cyan)
+\definecolor{xaiBorder}{HTML}{0E7490}         % XAI border
+\definecolor{xaiBg}{HTML}{ECFEFF}             % XAI background fill
+\definecolor{xaiText}{HTML}{155E75}           % XAI title text
+
+% Continuous Trust Engine Palette (Academic Jade & Emerald)
+\definecolor{cteBorder}{HTML}{047857}         % CTE border
+\definecolor{cteBg}{HTML}{F0FDF4}             % CTE container background
+\definecolor{cteHeader}{HTML}{065F46}         % CTE header banner
+\definecolor{cteCard}{HTML}{DCFCE7}           % CTE formulation card
+\definecolor{cteScoreBorder}{HTML}{0F766E}    % Score card border
+\definecolor{cteScoreBg}{HTML}{CCFBF1}        % Score card background
+
+% Decision Outcome Palette
+\definecolor{acceptGreen}{HTML}{15803D}       % Accept border
+\definecolor{acceptBg}{HTML}{DCFCE7}          % Accept fill
+\definecolor{monitorAmber}{HTML}{B45309}      % Monitor border
+\definecolor{monitorBg}{HTML}{FEF3C7}         % Monitor fill
+\definecolor{isolateRed}{HTML}{B91C1C}        % Isolate border
+\definecolor{isolateBg}{HTML}{FEE2E2}         % Isolate fill
+
+% ==============================================================================
+% TIKZ STYLES (Strictly Static, Overleaf-Compatible, No Macro Args)
+% ==============================================================================
+\begin{document}
+\begin{tikzpicture}[
+  >=Latex,
+  font=\small,
+  % --- Standard Cards ---
+  headerBanner/.style={
+    rectangle, rounded corners=3pt, line width=0.8pt,
+    align=center, inner sep=5pt, text=white
+  },
+  featureCardA/.style={
+    rectangle, rounded corners=3pt, draw=modelABorder, line width=0.8pt,
+    fill=modelACard, align=left, inner sep=6pt, font=\scriptsize
+  },
+  featureCardB/.style={
+    rectangle, rounded corners=3pt, draw=modelBBorder, line width=0.8pt,
+    fill=modelBCard, align=left, inner sep=6pt, font=\scriptsize
+  },
+  vectorCardA/.style={
+    rectangle, rounded corners=3pt, draw=modelABorder, line width=0.8pt,
+    fill=white, align=center, inner sep=5pt, font=\scriptsize
+  },
+  vectorCardB/.style={
+    rectangle, rounded corners=3pt, draw=modelBBorder, line width=0.8pt,
+    fill=white, align=center, inner sep=5pt, font=\scriptsize
+  },
+  xgbContainerA/.style={
+    rectangle, rounded corners=3pt, draw=modelABorder, line width=0.9pt,
+    fill=modelACard, align=center, inner sep=5pt, font=\scriptsize
+  },
+  xgbContainerB/.style={
+    rectangle, rounded corners=3pt, draw=modelBBorder, line width=0.9pt,
+    fill=modelBCard, align=center, inner sep=5pt, font=\scriptsize
+  },
+  treeNodeA/.style={
+    rectangle, rounded corners=2pt, draw=modelABorder, line width=0.6pt,
+    fill=white, align=center, inner sep=3pt, font=\tiny
+  },
+  treeNodeB/.style={
+    rectangle, rounded corners=2pt, draw=modelBBorder, line width=0.6pt,
+    fill=white, align=center, inner sep=3pt, font=\tiny
+  },
+  ensembleNode/.style={
+    rectangle, rounded corners=2pt, draw=treeAccent, line width=0.8pt,
+    fill=treeAccentBg, align=center, inner sep=3pt, font=\tiny
+  },
+  probCardA/.style={
+    rectangle, rounded corners=3pt, draw=modelABorder, line width=0.8pt,
+    fill=white, align=center, inner sep=5pt, font=\scriptsize
+  },
+  probCardB/.style={
+    rectangle, rounded corners=3pt, draw=modelBBorder, line width=0.8pt,
+    fill=white, align=center, inner sep=5pt, font=\scriptsize
+  },
+  classCardA/.style={
+    rectangle, rounded corners=3pt, draw=modelABorder, line width=0.8pt,
+    fill=modelACard, align=center, inner sep=5pt, font=\scriptsize
+  },
+  classCardB/.style={
+    rectangle, rounded corners=3pt, draw=modelBBorder, line width=0.8pt,
+    fill=modelBCard, align=center, inner sep=5pt, font=\scriptsize
+  },
+  xaiCard/.style={
+    rectangle, rounded corners=3pt, draw=xaiBorder, line width=0.8pt,
+    fill=xaiBg, align=center, inner sep=5pt, font=\scriptsize
+  },
+  scoreCardA/.style={
+    rectangle, rounded corners=3pt, draw=modelABorder, line width=1.1pt,
+    fill=white, align=center, inner sep=6pt, font=\scriptsize
+  },
+  scoreCardB/.style={
+    rectangle, rounded corners=3pt, draw=modelBBorder, line width=1.1pt,
+    fill=white, align=center, inner sep=6pt, font=\scriptsize
+  },
+  % --- CTE Styles ---
+  cteFormCard/.style={
+    rectangle, rounded corners=3pt, draw=cteBorder, line width=0.9pt,
+    fill=cteCard, align=center, inner sep=6pt
+  },
+  cteScoreCard/.style={
+    rectangle, rounded corners=3pt, draw=cteScoreBorder, line width=1pt,
+    fill=cteScoreBg, align=center, inner sep=6pt
+  },
+  decisionBox/.style={
+    rectangle, rounded corners=3pt, line width=0.9pt,
+    align=center, inner sep=5pt, font=\scriptsize,
+    text width=7.2cm, minimum height=2.2cm
+  },
+  % --- Standard Unified Arrows with Clear Shafts & Border Clearance ---
+  flowArrow/.style={
+    ->, draw=ieeeDark, line width=0.85pt,
+    shorten >= 2pt, shorten <= 2pt
+  },
+  boostArrow/.style={
+    ->, draw=treeAccent, line width=0.8pt,
+    shorten >= 1.5pt, shorten <= 1.5pt
+  },
+  fusionArrow/.style={
+    ->, draw=cteBorder, line width=1.1pt,
+    shorten >= 2pt, shorten <= 2pt
+  }
+]
+
+% ==============================================================================
+% FIGURE TITLE & SUBTITLE
+% ==============================================================================
+\node[align=center] (mainTitle) at (12.5, 4.4) {
+  {\fontsize{13}{16}\selectfont\textbf{\color{ieeeDark}TrustGuard-IoMT: XGBoost-Based Trust and Data Authenticity Model Architecture}} \\[3pt]
+  {\fontsize{9}{12}\selectfont\color{ieeeMuted}Detailed Model-Level Workflow: Feature Extraction, Gradient-Boosted Tree Ensembles, Calibration, and CTE Integration}
+};
+
+% ==============================================================================
+% COLUMN 1: MODEL A — DEVICE TRUST (XGBoost Multiclass)
+% Center: X = 6.4, Width = 10.8cm
+% ==============================================================================
+
+% Header Banner Model A
+\node[headerBanner, fill=modelAHeader, text width=10.8cm] (hdrA) at (6.4, 2.8) {
+  \textbf{\small MODEL A: DEVICE TRUST (XGBoost Multiclass Classifier)}
+};
+
+% Step 1: Input Features (Device Telemetry)
+\node[featureCardA, text width=10.8cm] (inputA) at (6.4, 1.0) {
+  \textbf{\color{modelAText}INPUT: 37 IoMT Device Telemetry Features} \\
+  \textbf{Composition:} 30 Raw Hardware/Sensor Signals $\;+\;$ 7 Domain-Engineered Features \\
+  \vspace{2pt}\hrule\vspace{3pt}
+  \textbf{\color{modelAText}7 Domain-Engineered Telemetry Features:} \\
+  \vspace{2pt}
+  \begin{tabular}{@{}ll@{}}
+    $\bullet$ Battery Drop Rate & $\bullet$ Battery Ratio \\
+    $\bullet$ Battery Health Gap & $\bullet$ Network Stress Metric \\
+    $\bullet$ Signal Variance Gap & $\bullet$ Resource Stress Factor \\
+    \multicolumn{2}{@{}l@{}}{$\bullet$ Vital-Pulse Difference Metric (Heart Rate vs. Pulse Ox Discrepancy)}
+  \end{tabular}
+};
+
+% Step 2: 37-Dimensional Feature Vector (Adequately spaced for clear arrow shaft)
+\node[vectorCardA, text width=10.8cm] (vecA) at (6.4, -1.6) {
+  \textbf{\color{modelAText}37-Dimensional Feature Vector} $\quad\mathbf{x}_{\text{device}} = [x_1, x_2, \dots, x_{37}]^T \in \mathbb{R}^{37}$ \\
+  \vspace{1pt}
+  \textit{\tiny Standardized numerical scaling and categorical encoding applied}
+};
+
+\draw[flowArrow] (inputA) -- (vecA);
+
+% Step 3: XGBoost Multiclass Classifier Ensemble Container
+\node[xgbContainerA, text width=10.8cm] (xgbBoxA) at (6.4, -4.0) {
+  \textbf{\color{modelAText}XGBoost Multiclass Classifier (Model A)} \\
+  \vspace{1pt}
+  \textit{\tiny Gradient-Boosted Decision Tree Ensemble: Sequential additive learning for residual reduction} \\
+  \vspace{4pt}
+  % Inner Conceptual Trees (Total span = 9.8cm, fits inside 10.8cm comfortably)
+  \begin{tikzpicture}[>=Latex]
+    \node[treeNodeA, text width=1.7cm] (t1A) at (0.0, 0) {
+      \textbf{\color{modelAText}Tree 1 ($T_1$)} \\
+      \vspace{1pt}
+      Base Split \\
+      $f_1(\mathbf{x}_{\text{device}})$
+    };
+    \node[treeNodeA, text width=1.7cm] (t2A) at (2.6, 0) {
+      \textbf{\color{modelAText}Tree 2 ($T_2$)} \\
+      \vspace{1pt}
+      Residual Fit \\
+      $f_2(\mathbf{x}_{\text{device}})$
+    };
+    \node[treeNodeA, text width=1.7cm] (t3A) at (5.2, 0) {
+      \textbf{\color{modelAText}Tree 3 ($T_3$)} \\
+      \vspace{1pt}
+      Refinement \\
+      $f_3(\mathbf{x}_{\text{device}})$
+    };
+    \node[ensembleNode, text width=1.8cm] (tEnsA) at (7.8, 0) {
+      \textbf{\color{treeAccent}Ensemble} \\
+      \vspace{1pt}
+      $\sum_{k=1}^K f_k(\mathbf{x})$ \\
+      \textbf{Boosted Sum}
+    };
+    \draw[boostArrow] (t1A) -- node[above, font=\tiny\bfseries, text=treeAccent] {$+\mathbf{r}_1$} (t2A);
+    \draw[boostArrow] (t2A) -- node[above, font=\tiny\bfseries, text=treeAccent] {$+\mathbf{r}_2$} (t3A);
+    \draw[boostArrow, dashed] (t3A) -- node[above, font=\tiny\bfseries, text=treeAccent] {$\dots$} (tEnsA);
+  \end{tikzpicture} \\
+  \vspace{3pt}
+  \tiny\textbf{Sequential Boosting:} Successive trees iteratively minimize multi-class log-loss residuals ($\mathbf{r}_m$).
+};
+
+\draw[flowArrow] (vecA) -- (xgbBoxA);
+
+% Step 4: Softmax Probability Estimation
+\node[probCardA, text width=10.8cm] (probA) at (6.4, -6.3) {
+  \textbf{\color{modelAText}Multiclass Probability Estimation (Softmax Transformation)} \\
+  \vspace{2pt}
+  $\hat{P}(\text{Trusted};\,\mathbf{x}) \qquad\qquad \hat{P}(\text{Monitor};\,\mathbf{x}) \qquad\qquad \hat{P}(\text{Untrusted};\,\mathbf{x})$ \\
+  \vspace{1pt}
+  \textit{\tiny Normalized posterior class distribution where $\sum_{c} P(c) = 1.0$}
+};
+
+\draw[flowArrow] (xgbBoxA) -- (probA);
+
+% Step 5: Discrete Classification Output
+\node[classCardA, text width=10.8cm] (classA) at (6.4, -7.9) {
+  \textbf{\color{modelAText}Device Operational Classification:} $\quad$
+  \textbf{\color{acceptGreen}Trusted} $\quad\bullet\quad$
+  \textbf{\color{monitorAmber}Monitor} $\quad\bullet\quad$
+  \textbf{\color{isolateRed}Untrusted} \\
+  \vspace{1pt}
+  \textit{\tiny Discrete operational state assigned via Maximum A Posteriori (MAP) rule}
+};
+
+\draw[flowArrow] (probA) -- (classA);
+
+% Step 6: XAI Feature Attribution
+\node[xaiCard, text width=10.8cm] (xaiA) at (6.4, -9.5) {
+  \textbf{\color{xaiText}XAI Feature Importance \& Degradation Attribution (Model A)} \\
+  \vspace{2pt}
+  \textbf{Monitored Signals:} Battery Dynamics $\;\bullet\;$ Resource Stress $\;\bullet\;$ Signal Variance $\;\bullet\;$ Vital-Pulse Gap \\
+  \textit{\tiny Tree-gain attribution pinpoints hardware degradation and sensor failure modes}
+};
+
+\draw[flowArrow] (classA) -- (xaiA);
+
+% Step 7: Calibrated Device Trust Score
+\node[scoreCardA, text width=10.8cm] (scoreA) at (6.4, -11.2) {
+  \textbf{\color{modelAText}\normalsize Calibrated Device Trust Score ($DT$)} $\quad\mathbf{\in [0, 100]}$ \\
+  \vspace{2pt}
+  \textbf{Continuous Mapping:} Calibrated posterior reliability function mapping state to $[0, 100]$ \\
+  \textit{\tiny Higher score indicates healthy hardware telemetry and genuine sensor status}
+};
+
+\draw[flowArrow] (xaiA) -- (scoreA);
+
+
+% ==============================================================================
+% COLUMN 2: MODEL B — DATA AUTHENTICITY (XGBoost Multiclass)
+% Center: X = 18.6, Width = 10.8cm
+% ==============================================================================
+
+% Header Banner Model B
+\node[headerBanner, fill=modelBHeader, text width=10.8cm] (hdrB) at (18.6, 2.8) {
+  \textbf{\small MODEL B: DATA AUTHENTICITY (XGBoost Multiclass Classifier)}
+};
+
+% Step 1: Input Features (WUSTL-EHMS-2020)
+\node[featureCardB, text width=10.8cm] (inputB) at (18.6, 1.0) {
+  \textbf{\color{modelBText}INPUT: 38 Network \& Biometric Features (WUSTL-EHMS-2020)} \\
+  \textbf{Composition:} Network Flow Telemetry $\;+\;$ Patient Biometric Telemetry Signals \\
+  \vspace{2pt}\hrule\vspace{3pt}
+  \textbf{\color{modelBText}Network \& Biometric Telemetry Categories:} \\
+  \vspace{2pt}
+  \begin{tabular}{@{}ll@{}}
+    $\bullet$ Packet \& Byte Flow Rates & $\bullet$ Biometric Telemetry Signals \\
+    $\bullet$ Inter-arrival Times \& Jitter & $\bullet$ Protocol Control Flags \\
+    $\bullet$ Frame Check Sequences & $\bullet$ Payload Length Consistency
+  \end{tabular}
+};
+
+% Step 2: 38-Dimensional Feature Vector (Adequately spaced for clear arrow shaft)
+\node[vectorCardB, text width=10.8cm] (vecB) at (18.6, -1.6) {
+  \textbf{\color{modelBText}38-Dimensional Feature Vector} $\quad\mathbf{x}_{\text{auth}} = [x_1, x_2, \dots, x_{38}]^T \in \mathbb{R}^{38}$ \\
+  \vspace{1pt}
+  \textit{\tiny Continuous network telemetry vector constructed per transmission window}
+};
+
+\draw[flowArrow] (inputB) -- (vecB);
+
+% Step 3: XGBoost Multiclass Classifier Ensemble Container
+\node[xgbContainerB, text width=10.8cm] (xgbBoxB) at (18.6, -4.0) {
+  \textbf{\color{modelBText}XGBoost Multiclass Classifier (Model B)} \\
+  \vspace{1pt}
+  \textit{\tiny Gradient-Boosted Decision Tree Ensemble: Learns network flow anomalies and spoofed biometrics} \\
+  \vspace{4pt}
+  % Inner Conceptual Trees (Total span = 9.8cm, fits inside 10.8cm comfortably)
+  \begin{tikzpicture}[>=Latex]
+    \node[treeNodeB, text width=1.7cm] (t1B) at (0.0, 0) {
+      \textbf{\color{modelBText}Tree 1 ($T_1$)} \\
+      \vspace{1pt}
+      Flow Split \\
+      $f_1(\mathbf{x}_{\text{auth}})$
+    };
+    \node[treeNodeB, text width=1.7cm] (t2B) at (2.6, 0) {
+      \textbf{\color{modelBText}Tree 2 ($T_2$)} \\
+      \vspace{1pt}
+      Spoofing Fit \\
+      $f_2(\mathbf{x}_{\text{auth}})$
+    };
+    \node[treeNodeB, text width=1.7cm] (t3B) at (5.2, 0) {
+      \textbf{\color{modelBText}Tree 3 ($T_3$)} \\
+      \vspace{1pt}
+      Alteration Fit \\
+      $f_3(\mathbf{x}_{\text{auth}})$
+    };
+    \node[ensembleNode, text width=1.8cm] (tEnsB) at (7.8, 0) {
+      \textbf{\color{treeAccent}Ensemble} \\
+      \vspace{1pt}
+      $\sum_{k=1}^K f_k(\mathbf{x})$ \\
+      \textbf{Boosted Sum}
+    };
+    \draw[boostArrow] (t1B) -- node[above, font=\tiny\bfseries, text=treeAccent] {$+\mathbf{r}_1$} (t2B);
+    \draw[boostArrow] (t2B) -- node[above, font=\tiny\bfseries, text=treeAccent] {$+\mathbf{r}_2$} (t3B);
+    \draw[boostArrow, dashed] (t3B) -- node[above, font=\tiny\bfseries, text=treeAccent] {$\dots$} (tEnsB);
+  \end{tikzpicture} \\
+  \vspace{3pt}
+  \tiny\textbf{Sequential Boosting:} Sequentially isolates packet injection, MAC spoofing, and biometric alteration.
+};
+
+\draw[flowArrow] (vecB) -- (xgbBoxB);
+
+% Step 4: Softmax Probability Estimation
+\node[probCardB, text width=10.8cm] (probB) at (18.6, -6.3) {
+  \textbf{\color{modelBText}Multiclass Probability Estimation (Softmax Transformation)} \\
+  \vspace{2pt}
+  $\hat{P}(\text{Normal};\,\mathbf{x}) \qquad\qquad \hat{P}(\text{Spoofing};\,\mathbf{x}) \qquad\qquad \hat{P}(\text{Data Alteration};\,\mathbf{x})$ \\
+  \vspace{1pt}
+  \textit{\tiny Normalized posterior class distribution where $\sum_{c} P(c) = 1.0$}
+};
+
+\draw[flowArrow] (xgbBoxB) -- (probB);
+
+% Step 5: Discrete Classification Output
+\node[classCardB, text width=10.8cm] (classB) at (18.6, -7.9) {
+  \textbf{\color{modelBText}Data Authenticity Classification:} $\quad$
+  \textbf{\color{acceptGreen}Normal} $\quad\bullet\quad$
+  \textbf{\color{monitorAmber}Spoofing} $\quad\bullet\quad$
+  \textbf{\color{isolateRed}Data Alteration} \\
+  \vspace{1pt}
+  \textit{\tiny Discrete network security state evaluated continuously per telemetry burst}
+};
+
+\draw[flowArrow] (probB) -- (classB);
+
+% Step 6: XAI Feature Attribution
+\node[xaiCard, text width=10.8cm] (xaiB) at (18.6, -9.5) {
+  \textbf{\color{xaiText}XAI Feature Importance \& Threat Attribution (Model B)} \\
+  \vspace{2pt}
+  \textbf{Monitored Signals:} Flow Rate Anomaly $\;\bullet\;$ Jitter Discrepancy $\;\bullet\;$ Inter-Arrival Spikes \\
+  \textit{\tiny Tree-gain attribution reveals protocol manipulation and biometric tampering signatures}
+};
+
+\draw[flowArrow] (classB) -- (xaiB);
+
+% Step 7: Calibrated Data Authenticity Score
+\node[scoreCardB, text width=10.8cm] (scoreB) at (18.6, -11.2) {
+  \textbf{\color{modelBText}\normalsize Calibrated Data Authenticity Score ($DA$)} $\quad\mathbf{\in [0, 100]}$ \\
+  \vspace{2pt}
+  \textbf{Continuous Mapping:} Quantifies probability of genuine, untampered transmission to $[0, 100]$ \\
+  \textit{\tiny Low score triggers immediate spoofing alerts and feeds Continuous Trust Engine}
+};
+
+\draw[flowArrow] (xaiB) -- (scoreB);
+
+
+% ==============================================================================
+% BOTTOM TIER: CONTINUOUS TRUST ENGINE (CTE) INTEGRATION
+% Center: X = 12.5, Width = 23.2cm
+% Generously spaced vertical separation to allow long, clear connecting arrows
+% ==============================================================================
+
+% Header Banner CTE
+\node[headerBanner, fill=cteHeader, text width=23.2cm] (hdrCTE) at (12.5, -14.4) {
+  \textbf{\small CONTINUOUS TRUST ENGINE (CTE) — DUAL-SOURCE VERIFICATION FUSION}
+};
+
+% Engine Formulation Box
+\node[cteFormCard, text width=23.2cm] (cteBox) at (12.5, -16.2) {
+  \textbf{\color{cteHeader}REAL-TIME CONTINUOUS TRUST FORMULATION} \\
+  \vspace{3pt}
+  {\fontsize{10.5}{13}\selectfont\textbf{$\mathbf{\text{Continuous Trust Score}} = (0.45 \times \text{Device Trust}) + (0.55 \times \text{Data Authenticity})$}} \\
+  \vspace{3pt}\hrule\vspace{3pt}
+  \scriptsize\textbf{Implemented Dual-Source Weights:} Device Trust Weight ($w_1$) = \textbf{0.45 (45\%)} $\quad\bullet\quad$ Data Authenticity Weight ($w_2$) = \textbf{0.55 (55\%)} \\
+  \textit{\tiny Dynamically balances physical device reliability against active network data integrity in real time.}
+};
+
+% Continuous Trust Score Output Box
+\node[cteScoreCard, text width=23.2cm] (finalScore) at (12.5, -18.2) {
+  \textbf{\color{cteScoreBorder}\normalsize FINAL CONTINUOUS TRUST SCORE $\quad\mathbf{\in [0, 100]}$} \\
+  \vspace{1pt}
+  \textit{\tiny Continuously re-evaluated upon every incoming telemetry burst $\;\bullet\;$ Enables zero-trust continuous drift tracking}
+};
+
+\draw[flowArrow, line width=1.0pt] (cteBox) -- (finalScore);
+
+% Three Symmetrical, Equal-Sized Decision Boundary Cards
+\node[decisionBox, draw=acceptGreen, fill=acceptBg] (decAccept) at (4.65, -20.5) {
+  \textbf{\color{acceptGreen}\normalsize ACCEPT} \\[2pt]
+  \textbf{\color{ieeeDark}Score: 80 -- 100} \\[2pt]
+  \hrule\vspace{3pt}
+  \textit{\tiny Telemetry verified authentic and device healthy. Normal clinical display and automatic storage.}
+};
+
+\node[decisionBox, draw=monitorAmber, fill=monitorBg] (decMonitor) at (12.5, -20.5) {
+  \textbf{\color{monitorAmber}\normalsize MONITOR} \\[2pt]
+  \textbf{\color{ieeeDark}Score: 50 -- 79.9} \\[2pt]
+  \hrule\vspace{3pt}
+  \textit{\tiny Elevated risk detected. Flag telemetry stream, dispatch clinical warnings, and enforce checks.}
+};
+
+\node[decisionBox, draw=isolateRed, fill=isolateBg] (decIsolate) at (20.35, -20.5) {
+  \textbf{\color{isolateRed}\normalsize ISOLATE} \\[2pt]
+  \textbf{\color{ieeeDark}Score: 0 -- 49.9} \\[2pt]
+  \hrule\vspace{3pt}
+  \textit{\tiny Critical security violation. Immediate device quarantine, access revocation, and alert generation.}
+};
+
+% Arrows from Final Score to Decisions (Long, clear shafts, non-overlapping)
+\draw[flowArrow] ($(finalScore.south) + (-7.85, 0)$) -- (decAccept.north);
+\draw[flowArrow] (finalScore.south) -- (decMonitor.north);
+\draw[flowArrow] ($(finalScore.south) + (7.85, 0)$) -- (decIsolate.north);
+
+% ==============================================================================
+% LONG, CLEAR VERTICAL CONNECTORS: MODEL A & MODEL B INTO CTE
+% Cleanly centered badges with ample vertical clearance on both sides
+% ==============================================================================
+\draw[fusionArrow] (scoreA.south) -- ($(cteBox.north) + (-6.1, 0)$)
+  node[pos=0.45, fill=white, draw=modelABorder, line width=0.6pt, rounded corners=2pt, font=\scriptsize\bfseries, text=modelAText, inner sep=3pt] {Device Trust Sub-score ($w_1 = 0.45$)};
+
+\draw[fusionArrow] (scoreB.south) -- ($(cteBox.north) + (6.1, 0)$)
+  node[pos=0.45, fill=white, draw=modelBBorder, line width=0.6pt, rounded corners=2pt, font=\scriptsize\bfseries, text=modelBText, inner sep=3pt] {Data Authenticity Sub-score ($w_2 = 0.55$)};
+
+
+% ==============================================================================
+% BACKGROUND CONTAINERS (SEPARATED WITH GENEROUS OPEN WHITE SPACE)
+% ==============================================================================
+\begin{scope}[on background layer]
+  % Container 1: Model A Pipeline
+  \node[
+    rectangle, rounded corners=5pt, draw=modelABorder, line width=0.9pt,
+    fill=modelABg, fit={(hdrA) (inputA) (scoreA)},
+    inner xsep=6pt, inner ysep=8pt
+  ] (boxModelA) {};
+
+  % Container 2: Model B Pipeline
+  \node[
+    rectangle, rounded corners=5pt, draw=modelBBorder, line width=0.9pt,
+    fill=modelBBg, fit={(hdrB) (inputB) (scoreB)},
+    inner xsep=6pt, inner ysep=8pt
+  ] (boxModelB) {};
+
+  % Container 3: Continuous Trust Engine Tier (Separated by generous open space)
+  \node[
+    rectangle, rounded corners=5pt, draw=cteBorder, line width=0.9pt,
+    fill=cteBg, fit={(hdrCTE) (cteBox) (finalScore) (decAccept) (decIsolate)},
+    inner xsep=6pt, inner ysep=8pt
+  ] (boxCTE) {};
+\end{scope}
+
+\end{tikzpicture}
+\end{document}

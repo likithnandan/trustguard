@@ -95,11 +95,23 @@ def init_db():
     existing_columns = {row[1] for row in conn.execute("PRAGMA table_info(users)").fetchall()}
     if "email_verified" not in existing_columns:
         conn.execute("ALTER TABLE users ADD COLUMN email_verified INTEGER NOT NULL DEFAULT 0")
-    if "is_active" not in existing_columns:
-        conn.execute("ALTER TABLE users ADD COLUMN is_active INTEGER NOT NULL DEFAULT 1")
+    # Ensure demo accounts exist out-of-the-box
+    admin_exists = conn.execute("SELECT id FROM users WHERE email = 'admin@gmail.com'").fetchone()
+    if not admin_exists:
+        now_str = datetime.datetime.now(timezone.utc).isoformat()
+        demo_accounts = [
+            ("admin@gmail.com", hash_password("Admin@12345"), "Administrator", "Administrator", 1, 1, now_str),
+            ("doctor.smith@gmail.com", hash_password("Doctor@12345"), "Dr. Sarah Smith", "Doctor", 1, 1, now_str),
+            ("tech@gmail.com", hash_password("Tech@12345"), "Alex Rivera", "Technician", 1, 1, now_str),
+        ]
+        conn.executemany(
+            "INSERT OR IGNORE INTO users (email, password_hash, full_name, role, email_verified, is_active, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+            demo_accounts
+        )
 
     conn.commit()
     conn.close()
+
 
 
 init_db()
@@ -195,7 +207,17 @@ def generate_and_send_otp(email: str, purpose: str, full_name: str = ""):
         subject = "Password reset code - Medical IoT Trust Platform"
         body = f"Hi {full_name},\n\nYour password reset code is: {code}\n\nThis code expires in {OTP_EXPIRY_MINUTES} minutes.\n\nIf you didn't request this, you can ignore this email."
 
-    send_email(email, subject, body)
+    if SMTP_EMAIL and SMTP_APP_PASSWORD and SMTP_EMAIL != "your-real-gmail@gmail.com":
+        try:
+            send_email(email, subject, body)
+        except Exception as e:
+            print(f"[SMTP Warning] Could not send live email: {e}. Falling back to console log.")
+    
+    # Always print code to terminal in development/demo mode
+    print(f"\n[TRUSTGUARD 2FA OTP] >>> One-Time Code for {email} ({purpose}): {code} <<<\n")
+    return code
+
+
 
 
 def verify_otp_or_raise(email: str, purpose: str, code: str):
@@ -357,8 +379,15 @@ def login(req: LoginRequest):
         raise HTTPException(status_code=403, detail="Email not verified yet. A new verification code has been sent.")
 
     if user["role"] == "Doctor":
-        generate_and_send_otp(user["email"], "login", user["full_name"])
-        return {"message": "OTP sent to your email.", "email": user["email"], "requires_otp": True, "purpose": "login"}
+        code = generate_and_send_otp(user["email"], "login", user["full_name"])
+        return {
+            "message": "OTP sent to your email.",
+            "email": user["email"],
+            "requires_otp": True,
+            "purpose": "login",
+            "demo_otp": code if not SMTP_EMAIL else None
+        }
+
 
     token = create_token(user["email"])
     return {"message": "Login successful.", "token": token, "email": user["email"], "full_name": user["full_name"], "role": user["role"]}

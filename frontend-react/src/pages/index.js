@@ -1,0 +1,16 @@
+export { default as Login } from './Login';
+export { default as Dashboard } from './Dashboard';
+export { default as Patients } from './Patients';
+export { default as Devices } from './Devices';
+export { default as Trust } from './Trust';
+export { default as Analytics } from './Analytics';
+export { default as HeatMap } from './HeatMap';
+export { default as Maintenance } from './Maintenance';
+export { default as Alerts } from './Alerts';
+export { default as Reports } from './Reports';
+export { default as DeviceProfiles } from './DeviceProfiles';
+export { default as Settings } from './Settings';
+export { default as Users } from './Users';
+export { default as DoctorPortal } from './DoctorPortal';
+export { default as AccessDenied } from './AccessDenied';
+export { default as NotFound } from './NotFound';
