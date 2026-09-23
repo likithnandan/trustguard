@@ -4,6 +4,8 @@
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.115+-009688.svg)](https://fastapi.tiangolo.com/)
 [![React 18](https://img.shields.io/badge/React-18.3+-61DAFB.svg)](https://react.dev/)
 [![XGBoost](https://img.shields.io/badge/XGBoost-2.1+-eb4224.svg)](https://xgboost.readthedocs.io/)
+[![CI Testing](https://github.com/likithnandan/trustguard/actions/workflows/ci-testing.yml/badge.svg)](https://github.com/likithnandan/trustguard/actions)
+[![Tests Passing](https://img.shields.io/badge/tests-17%20passed-brightgreen.svg)]()
 [![Zero-Trust](https://img.shields.io/badge/Security-Zero--Trust%20IoMT-green.svg)]()
 
 ---
@@ -153,19 +155,25 @@ project/
 
 ---
 
-## 🧪 Automated Verification Suite
+## 🧪 Automated Testing & Verification Suite
 
-Run the master verification test across the entire project:
+### 1. Pytest Backend & Continuous AI Suite
+Run the 17 automated unit and integration tests across the backend, authentication, machine learning engines, and real-time telemetry pipelines:
+```bash
+pytest -vv
+```
+
+### 2. React Frontend Vitest Unit Tests
+Run the component unit tests covering authentication entropy, trust fusion formulas, risk aggregation, and security filters:
+```bash
+cd frontend-react
+npm test
+```
+
+### 3. Master End-to-End System Verification
+Run the comprehensive 5-phase end-to-end simulation across database state, dual ML models, and API endpoints:
 ```bash
 python verify_complete_project_e2e.py
-```
-
-Expected output:
-```
-====================================================================
-  ALL 5 MASTER VERIFICATION PHASES PASSED (100% SUCCESS)!
-  TrustGuard-IoMT is production-ready and fully operational.
-====================================================================
 ```
 
 ---
